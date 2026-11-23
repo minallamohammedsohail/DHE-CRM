@@ -612,10 +612,20 @@ Known behaviour and limits:
 - Lists show at most 200 rows
 - Modal dialogs cannot be captured in screenshots; they were checked through page state
 - Carried from Phase 2: one unexplained, unreproduced stuck Save button after a duplicate-warning Cancel
-- Not tested: the deployed Vercel site with the Phase 1 to 6 code; signing out in a second tab; real phone hardware
+- Not tested: signing in on the deployed site (needs a real password, which only the owner should type); signing out in a second tab; real phone hardware
+
+Deployment (https://dhe-crm-nine.vercel.app/), verified against commit d3b1530:
+- All 15 served files (6 pages, `style.css`, 8 JavaScript files) are byte-identical to the committed versions; Vercel is deploying from `main` automatically
+- JavaScript is served as `application/javascript`; caching is `max-age=0, must-revalidate`, so a push is visible immediately; HTTPS with HSTS
+- No service-role key in any served file; `config.js` holds a `sb_publishable_` key only; no email addresses, passwords or project URLs in any tracked file
+- Signed out, all five protected pages end on `login.html`, and protected content never appears, sampled every 60 ms for 4.5 seconds each
+- A wrong password on the live site shows "Incorrect email or password.", sends one request from a triple submit, and the form recovers
+- Using the key from the live `config.js`: anonymous read, insert, update and delete are all refused with `permission denied` (42501) on `leads`, `customers`, `followups` and `orders`; sign-up is refused ("Signups not allowed for this instance"); the REST root, which would reveal the schema, requires a secret key
+- Publicly served but harmless: `Project.md`, `db/schema.sql` and `.gitattributes` (design documentation; no secrets)
+- Security headers set by Vercel: only `Strict-Transport-Security`. Not set: `X-Content-Type-Options`, `X-Frame-Options` or CSP `frame-ancestors`, `Referrer-Policy`, `Content-Security-Policy`. Adding them needs a `vercel.json`, which is a new file and needs approval.
 
 Next:
-- Phase 7 hardening (section 11): a pass on a real phone, the empty-state and failure-path review, confirming the Vercel deployment serves the current code, and a final RLS check with the anon key against all four tables
+- Phase 7 hardening (section 11): the owner signs in on the deployed site and works through each page on a real phone; decide on the security headers and on hiding the documentation files; change the passwords used during testing; decide who else gets an account
 
 ## 18. Resolved Questions
 
