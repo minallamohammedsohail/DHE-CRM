@@ -621,11 +621,11 @@ Deployment (https://dhe-crm-nine.vercel.app/), verified against commit d3b1530:
 - Signed out, all five protected pages end on `login.html`, and protected content never appears, sampled every 60 ms for 4.5 seconds each
 - A wrong password on the live site shows "Incorrect email or password.", sends one request from a triple submit, and the form recovers
 - Using the key from the live `config.js`: anonymous read, insert, update and delete are all refused with `permission denied` (42501) on `leads`, `customers`, `followups` and `orders`; sign-up is refused ("Signups not allowed for this instance"); the REST root, which would reveal the schema, requires a secret key
-- Publicly served but harmless: `Project.md`, `db/schema.sql` and `.gitattributes` (design documentation; no secrets)
+- `.vercelignore` (added in commit 6c7a8a4) stops Vercel serving `Project.md`, `db/` and `.gitattributes`. They stay in the repository. Verified on the live site: all three, plus `.vercelignore` and `.gitignore`, return 404, and all 15 app files are still served and identical to Git. Edge caching delayed `db/schema.sql` by under a minute.
 - Security headers set by Vercel: only `Strict-Transport-Security`. Not set: `X-Content-Type-Options`, `X-Frame-Options` or CSP `frame-ancestors`, `Referrer-Policy`, `Content-Security-Policy`. Adding them needs a `vercel.json`, which is a new file and needs approval.
 
 Next:
-- Phase 7 hardening (section 11): the owner signs in on the deployed site and works through each page on a real phone; decide on the security headers and on hiding the documentation files; change the passwords used during testing; decide who else gets an account
+- Phase 7 hardening (section 11): the owner signs in on the deployed site and works through each page on a real phone; decide on the security headers (needs a `vercel.json`); change the passwords used during testing; decide who else gets an account
 
 ## 18. Resolved Questions
 
