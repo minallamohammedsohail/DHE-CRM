@@ -19,7 +19,7 @@ export const SUPABASE_ANON_KEY = 'sb_publishable_ZJSa-ixwN4d0BKED8_5GUA_W4YdVF4J
 // Pinned Supabase JS client version. Never use a floating range like @2 —
 // a third-party release could then break production with no change here.
 // Confirm the current published version before changing this.
-export const SUPABASE_JS_VERSION = '2.58.0';
+export const SUPABASE_JS_VERSION = '2.119.0';
 
 // Business timezone. All "today" / "overdue" / "this month" boundaries are
 // computed in this zone, never in UTC or the browser's local zone.

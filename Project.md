@@ -59,7 +59,7 @@ Import the Supabase client from an exact version URL, never a floating major ran
 
 ```js
 // Correct — exact version
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm';
 
 // Wrong — a third-party update can break production with no change on our side
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -567,27 +567,17 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **approved, not started.**
+Project status: **Phase 0 complete. Phase 1 (auth and shell) next.**
 
 Completed:
 - Technology stack selected and locked
-- Scope defined
-- Architecture reviewed and approved
-- Database design reviewed; constraints, indexes, triggers, generated columns and FK behavior specified
-- Security model decided: multi-user shared data, no public sign-up, RLS on all tables, committed anon key
-- Folder structure finalized
-- Implementation order approved
+- Architecture reviewed and approved; decisions recorded in this file
+- Phase 0: `db/schema.sql` applied to Supabase; RLS enabled; anon access verified denied on all four tables; public sign-up disabled; email confirmation off; user accounts created; `js/config.js` filled in; repository on GitHub; placeholder page deployed on Vercel
+- Supabase JS client pinned to 2.119.0 (verified on the CDN)
 
 Next:
-- Resolve the open questions in section 18
-- Write `db/schema.sql`
-- Phase 0: Supabase project, schema, RLS verification, Git repository, Vercel placeholder deployment
-
-Not yet done, deliberately:
-- No Supabase tables created
-- No packages installed
-- No code written
-- Nothing deployed
+- Phase 1: `login.html`, auth gate, shared nav, `style.css` foundation
+- Verify a signed-in user can read and write all four tables (not yet tested; only anon denial has been)
 
 ## 18. Open Questions
 
