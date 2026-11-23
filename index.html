@@ -11,28 +11,41 @@
   <div class="shell">
     <nav id="nav" class="sidebar" aria-label="Main"></nav>
 
-    <main class="main">
-      <header class="page-header">
-        <h1>Dashboard</h1>
-        <p class="muted">Dream Home Enterprises</p>
+    <main class="main main-wide">
+      <header class="page-header page-header-row">
+        <div>
+          <h1>Dashboard</h1>
+          <p id="month-label" class="muted"></p>
+        </div>
+        <div class="header-actions">
+          <span id="updated" class="muted"></span>
+          <button id="refresh-btn" class="btn btn-quiet" type="button">Refresh</button>
+        </div>
       </header>
 
-      <section class="card">
-        <h2>Setup complete</h2>
-        <p>You are signed in. The dashboard widgets are built last, once leads, customers, follow-ups and orders are working.</p>
-        <p id="signed-in-as" class="muted"></p>
-      </section>
+      <section id="tiles" class="tiles" aria-label="Key figures"></section>
+
+      <div class="dash-grid">
+        <section class="card" aria-labelledby="pipeline-title">
+          <h2 id="pipeline-title">Lead pipeline</h2>
+          <div id="pipeline"></div>
+        </section>
+
+        <section class="card" aria-labelledby="leads-title">
+          <h2 id="leads-title">Recent leads</h2>
+          <div id="recent-leads"></div>
+          <p class="card-link"><a href="leads.html">All leads</a></p>
+        </section>
+
+        <section class="card dash-wide" aria-labelledby="orders-title">
+          <h2 id="orders-title">Recent orders</h2>
+          <div id="recent-orders"></div>
+          <p class="card-link"><a href="orders.html">All orders</a></p>
+        </section>
+      </div>
     </main>
   </div>
 
-  <script type="module">
-    import { requireAuth, renderNav } from './js/app.js';
-
-    const user = await requireAuth();
-    if (user) {
-      renderNav(user);
-      document.getElementById('signed-in-as').textContent = `Signed in as ${user.email}`;
-    }
-  </script>
+  <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>

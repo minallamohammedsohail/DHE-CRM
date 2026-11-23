@@ -160,13 +160,14 @@ All tables include:
 - `phone` — text, required (as entered)
 - `phone_norm` — text, generated stored, `regexp_replace(phone, '\D', '', 'g')`
 - `location` — text
-- `source` — text
+- `source` — text, nullable, fixed list enforced by CHECK `leads_source_check`: Walk-in, Referral, Phone, WhatsApp, Instagram, Website, Other (matches `LEAD_SOURCES` in `app.js`)
 - `requirement` — text
 - `interested_product` — text
 - `budget` — numeric
 - `status` — text, not null, default `'New'`, CHECK constrained
 - `notes` — text
 - `archived_at` — timestamptz, nullable
+- `converted_at` — timestamptz, nullable; set by the app when the lead is converted to a customer; used by the dashboard's "leads converted this month"
 - `created_at`, `created_by`, `updated_at`
 
 Lead statuses (CHECK constraint):
@@ -211,7 +212,7 @@ Constraint: `CHECK (lead_id IS NOT NULL OR customer_id IS NOT NULL)` — a follo
 - `order_date` — date, not null, default current date in Asia/Kolkata
 - `description` — text
 - `quantity` — numeric
-- `unit` — text
+- `unit` — text, nullable, fixed list enforced by CHECK `orders_unit_check`: Box, Piece, Sq. ft. (matches `ORDER_UNITS` in `app.js`); quantity and unit are given together or not at all
 - `total_amount` — numeric(12,2), not null, CHECK `>= 0`
 - `amount_paid` — numeric(12,2), not null, default 0, CHECK `>= 0`
 - `balance` — numeric(12,2), **generated always as `(total_amount - amount_paid)` stored**
@@ -567,74 +568,68 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phases 0 to 5 complete. Phase 6 (Dashboard) next.**
+Project status: **All six build phases are complete. Remaining work is hardening (section 11, phase 7) and go-live checks.**
 
 Completed:
-- Technology stack selected and locked; architecture reviewed and approved
 - Phase 0: schema applied; RLS enabled and verified; sign-up disabled; accounts created; GitHub repository; Vercel placeholder
 - Phase 1: auth gate, shared nav, toast and error handling, style foundation, login page
 - Phase 2: Leads
 - Phase 3: Customers and lead conversion
 - Phase 4: Follow-ups (IST calendar-day buckets; archiving a lead cancels its pending follow-ups)
-- Phase 5: Orders. `orders.html`, `js/orders.js`; exact-money helpers in `app.js`; Orders section and "Add order" on the customer profile.
+- Phase 5: Orders (exact-paise money, concurrent-edit protection, no per-payment history)
+- Phase 6: Dashboard. `index.html`, `js/dashboard.js`; IST month helper in `app.js`; `leads.converted_at`; click-through parameters `?status=` (leads), `?tab=` (follow-ups) and `?q=` (orders).
 
-Decisions applied in Phase 5 (defaults approved):
-- D1 payments are one running "amount paid" per order; "Record payment" adds to it; it can also be corrected by editing the order. There is no per-payment history (that would need a fifth table).
-- D2 overpayment is allowed after a confirmation; the balance shows as "Overpaid"
-- D3 `unit` is a fixed list (Box, Piece, Sq. ft.) via a CHECK constraint; quantity and unit are given together or not at all
-- D4 required: customer, description, total above 0, order date not in the future (defaults to today in IST)
-- D5 any status can move to any other; Cancelled needs confirmation and warns when money is recorded as paid; orders are never deleted
-- D6 add on the Orders page with a customer search, or from the customer profile (`orders.html?customer=<id>`); `lead_id` is copied from the customer's origin lead automatically
-- D7 "Record payment", order edits and status changes check the order is unchanged since it was loaded (`amount_paid` for payments, `updated_at` otherwise) and refuse with a message and a refresh if someone else changed it. Amounts are handled in whole paise.
-- Cancelled orders show no balance and are excluded from the "Outstanding" and "Paid in full" filters and from a customer's outstanding total. "Outstanding" on a customer profile sums only orders with a positive balance; an overpaid order is not netted against another order.
+Decisions applied in Phase 6 (defaults approved):
+- D1 Revenue this month = sum of `total_amount` of non-cancelled orders dated in the current IST month, with the order count shown
+- D2 Active leads = non-archived leads in New, Contacted, Interested, Site Visit or Negotiation; computed from the pipeline counts so the tile and pipeline always agree
+- D3 Leads converted this month uses `converted_at`, set at conversion (both the new-customer and the link-to-existing paths); archived leads are excluded
+- D4 all lead counts exclude archived leads; "New leads this month" = created this month and not archived
+- D5 follow-up tiles use the Phase 4 definitions (pending, IST calendar day)
+- D6 recent leads and recent orders show the latest 5; the pipeline shows all 7 statuses as bars
+- D7 click-through: follow-up tiles open the matching tab; pipeline rows open Leads filtered to that status; recent items open their records
+- Each widget loads independently; a failure shows "—" (or "Could not load this section") for that widget only, with a Refresh button and one error toast. No auto-refresh.
 
-Phase 5 tested (locally, signed in, temporary rows, all deleted afterwards):
-- Money helpers in Node (default timezone, Los Angeles, Auckland): 0.10 + 0.20 is exactly 0.30; valid and invalid amount strings; 3-decimal input is rejected before any arithmetic
-- Payments through the page: 0.10 then 0.20 gives exactly 0.30, then up to exactly 10,000; zero, negative and 3-decimal amounts blocked; live new-balance preview; overpayment prompt (dismiss keeps the dialog open and data unchanged, confirm records it and shows "Overpaid")
-- Concurrency: another user changes the order while a payment dialog, an edit form, or a status dropdown is open; each save is refused, nothing is overwritten, the user sees the message and the list refreshes; a clean edit still saves (the `updated_at` guard matches exactly). A bug found here (message hidden in a closed dialog) was fixed and re-tested.
-- Validation proven in two layers: the browser's native checks block every bad case; with those removed, my own checks alone reject blank description, future date, year 1999, zero total, 3-decimal total, paid and quantity, negative paid, zero quantity, quantity without unit, unit without quantity, `1e3` and an amount too large for the column
-- Add: customer picker (too short, by name, by phone, no match, hostile characters), nothing chosen, overpayment on create, valid add with quantity and unit, triple submit creates one row
-- Status: normal change; Cancel with money recorded (dismiss reverts the dropdown, confirm cancels); un-cancel; cancelled row muted with no balance
-- View and edit dialogs: contents, prefilled edit with the customer locked, saved values, `created_at` and customer unchanged, `updated_at` moves
-- Search, filters and sorts compared against results computed independently from the raw database rows: customer name, phone, description and notes, phrase, no match, each status, outstanding, paid in full, date from, to, range, same day, a combination, reversed range message, and all four sorts including full tie-break order
-- `?customer=` links: valid, invalid id, valid id that does not exist
-- Customer profile: order history, outstanding total checked against an independent calculation (cancelled excluded), "Add order" link, empty state
-- The database refuses to delete a customer who has orders (`ON DELETE RESTRICT`, error 23503)
-- A script tag and an `<img onerror>` in a customer name and an order description render as plain text; nothing executed
-- Offline load shows a friendly message after about 7 seconds
-- Regression: lead search and conversion, follow-up picker and creation; no JavaScript errors
-- Layout at desktop and phone width; no horizontal overflow on phones; fixed cramped filters, wrapping actions, and row actions that were only 24px tall (now 46px on phones)
-
-Database constraint `orders_unit_check` (applied to the live database and verified):
-- Rejected with error 23514 naming `orders_unit_check`: `Kg`, `Sq. m`, `box` (lowercase), `Box ` (trailing space), `Sq.ft.` and an empty string
-- Accepted: `Box`, `Piece`, `Sq. ft.` and no unit (NULL)
-- An update to an invalid unit is also rejected
-- The app stores NULL, never an empty string, when no unit is chosen
+Phase 6 tested (locally, signed in, temporary rows, all deleted afterwards):
+- Month helper in Node (default timezone, Los Angeles, Auckland): 12 checks including 23:59:59 IST on 30 Nov versus 00:00:00 on 1 Dec, December into January, leap and non-leap February, and UTC still on the 31st while India is already in the next month
+- Empty database: zeros and "No leads yet" / "No orders yet"
+- Data placed exactly on the month and day edges, with archived leads and cancelled orders. Every tile and the pipeline matched a hand calculation and an independent recomputation from the raw rows; revenue is exactly ₹3,500.30 (1,000.10 + 2,000.20 + 500) and excludes cancelled and out-of-month orders
+- `converted_at`: leads converted one second inside and outside each month boundary and an archived converted lead are counted correctly; converting through the real button stamps `converted_at` on both paths
+- India's midnight passed during testing; the dashboard correctly moved a follow-up from overdue to today and two from today to overdue (due today 2 to 1, overdue 1 to 3), matching predictions
+- Failure isolation: blocking only order requests fails only Revenue and Recent orders; fully offline shows "—" everywhere with one friendly message after about 7 seconds, and Refresh recovers; the Refresh button disables and shows a loading state while running
+- Click-throughs: tiles, pipeline rows, recent leads and recent orders land on the right filtered views; invalid `?status=` and `?tab=` values (including `__proto__`) are ignored
+- A script tag, an `<img onerror>` and similar text in lead names and order descriptions render as plain text
+- Layout at desktop and phone width; no horizontal overflow on phones
+- Regression: follow-ups default tab and counts, order search and status filter, customer profile (leads, follow-ups, orders, outstanding total)
+- A bug found during testing: none in the dashboard itself; one false alarm came from the test comparing timestamps as text
 
 Known behaviour and limits:
-- No per-payment history and no order numbers (orders are identified by customer, date and description); either would be a schema addition
-- Lists show at most 200 rows
-- Order search matches customers by name or phone (every word), and descriptions or notes by the whole phrase; at most the first 100 matching customers are used
+- No auto-refresh; the figures are as of the last load or Refresh
+- Revenue is booked orders, not cash collected; there is no per-payment history
+- The overdue and due-today counts rely on the browser's clock being correct
+- Revenue pages through orders 1000 at a time in the browser; it is correct for any volume but would slow for very large months
+- Pending follow-ups left on an archived lead (only if the cancel step failed at archive time) are still counted
 - With no network, loads show no error for about 7 seconds while the Supabase client retries
-- On phones the filter block is tall; the first order appears below about five rows of filters
+- Lists show at most 200 rows
 - Modal dialogs cannot be captured in screenshots; they were checked through page state
 - Carried from Phase 2: one unexplained, unreproduced stuck Save button after a duplicate-warning Cancel
-- Not tested: the deployed Vercel site with Phase 1 to 5 code; signing out in a second tab
+- Not tested: the deployed Vercel site with the Phase 1 to 6 code; signing out in a second tab; real phone hardware
 
 Next:
-- Phase 6: Dashboard (all nine widgets). Open question O3 (what "Revenue this month" means) must be settled first; my default is the sum of `total_amount` for non-cancelled orders dated this month.
+- Phase 7 hardening (section 11): a pass on a real phone, the empty-state and failure-path review, confirming the Vercel deployment serves the current code, and a final RLS check with the anon key against all four tables
 
-## 18. Open Questions
+## 18. Resolved Questions
 
-These do not block Phase 0 but must be answered before the phase that depends on them.
+All questions raised during planning have been answered. None are open.
 
-| # | Question | Proposed default | Needed by |
-|---|---|---|---|
-| O1 | Is `leads.source` a free-text field or a fixed list? A fixed list allows a CHECK constraint and a reliable filter dropdown. | Fixed list: Walk-in, Referral, Phone, WhatsApp, Instagram, Website, Other | Phase 2 |
-| O2 | May `amount_paid` exceed `total_amount` (advance or overpayment), making `balance` negative? | Allowed; no upper CHECK | Phase 5 |
-| O3 | Does "Revenue this month" mean the total of orders dated this month, or payments received this month? Do Cancelled orders count? | Sum of `total_amount` for orders with `order_date` in this month, excluding Cancelled | Phase 6 |
-| O4 | Is `orders.unit` free text or a fixed list? | Fixed list: Box, Piece, Sq. ft. | Phase 5 |
-| O5 | Can any authenticated user restore an archived lead, or is that restricted? | Any authenticated user; the action is logged by `created_by`/`updated_at` | Phase 2 |
-| O6 | Do customers also need archiving, or only leads? | Only leads for now | Phase 3 |
-| O7 | Is email confirmation enabled on the Supabase project? Manually created users need confirming or login fails with an unclear error. | Disabled, since accounts are created by hand | Phase 0 |
-| O8 | Should the repository file be `Project.md` or `PROJECT.md`? Git is case-sensitive even though Windows is not. | Keep `Project.md` as it exists now | Phase 0 |
+| # | Question | Decision |
+|---|---|---|
+| O1 | Is `leads.source` free text or a fixed list? | Fixed list: Walk-in, Referral, Phone, WhatsApp, Instagram, Website, Other (CHECK constraint) |
+| O2 | May `amount_paid` exceed `total_amount`? | Yes, after a confirmation; the balance shows as "Overpaid" |
+| O3 | What does "Revenue this month" mean? | Booked orders: the sum of `total_amount` for non-cancelled orders dated in the current IST month. Cash collected cannot be reported accurately without a per-payment history. |
+| O4 | Is `orders.unit` free text or a fixed list? | Fixed list: Box, Piece, Sq. ft. (CHECK constraint) |
+| O5 | Who can restore an archived lead? | Any signed-in user |
+| O6 | Do customers need archiving? | No; leads only |
+| O7 | Is email confirmation enabled? | No, since accounts are created by hand |
+| O8 | `Project.md` or `PROJECT.md`? | `Project.md` |
+
+Possible future additions that would each need a schema change and your approval: a per-payment history table (receipts, cash-collected reporting) and an order number column.

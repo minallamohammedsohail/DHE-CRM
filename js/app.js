@@ -158,6 +158,7 @@ const istClock = new Intl.DateTimeFormat('en-CA', {
   timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 });
+const monthLabel = new Intl.DateTimeFormat('en-IN', { timeZone: TIMEZONE, month: 'long', year: 'numeric' });
 const dateTimeFormat = new Intl.DateTimeFormat('en-IN', {
   timeZone: TIMEZONE, day: '2-digit', month: 'short', year: 'numeric',
   hour: 'numeric', minute: '2-digit', hour12: true,
@@ -173,6 +174,24 @@ export function dayRangeIST(now = new Date()) {
   const start = new Date(`${istDateString(now)}T00:00:00${IST_OFFSET}`);
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start: start.toISOString(), end: end.toISOString() };
+}
+
+// The IST calendar month containing `now`. `start`/`end` are timestamps
+// ([start, end)); `firstDay`/`nextFirstDay` are date strings for date columns.
+export function monthBoundsIST(now = new Date()) {
+  const [year, month] = istDateString(now).split('-').map(Number);
+  const pad = (n) => String(n).padStart(2, '0');
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const firstDay = `${year}-${pad(month)}-01`;
+  const nextFirstDay = `${nextYear}-${pad(nextMonth)}-01`;
+  return {
+    firstDay,
+    nextFirstDay,
+    start: new Date(`${firstDay}T00:00:00${IST_OFFSET}`).toISOString(),
+    end: new Date(`${nextFirstDay}T00:00:00${IST_OFFSET}`).toISOString(),
+    label: monthLabel.format(now),
+  };
 }
 
 // ISO timestamp -> "2026-11-23T10:00", the IST wall-clock value for a

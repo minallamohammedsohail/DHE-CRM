@@ -528,6 +528,10 @@ async function openFromLink() {
 fillOptions(filters.status, ORDER_STATUSES);
 fillOptions(form.elements.unit, ORDER_UNITS);
 
+// orders.html?q=<phone> (from the dashboard's recent orders).
+const startingSearch = new URLSearchParams(location.search).get('q');
+if (startingSearch) filters.search.value = startingSearch.slice(0, 100);
+
 let searchTimer;
 filters.search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(load, 300); });
 for (const control of [filters.status, filters.payment, filters.from, filters.to, filters.sort]) {

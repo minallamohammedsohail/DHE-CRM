@@ -83,6 +83,15 @@ alter table public.leads add constraint leads_source_check
   check (source is null or source in ('Walk-in','Referral','Phone',
                                       'WhatsApp','Instagram','Website','Other'));
 
+-- When a lead was converted to a customer. Set by the app at conversion; used
+-- by the dashboard's "leads converted this month". NULL for leads that have
+-- not been converted. (updated_at cannot be used: it moves on any later edit.)
+alter table public.leads add column if not exists converted_at timestamptz;
+comment on column public.leads.converted_at is 'Set when the lead is converted to a customer.';
+-- Fill in any lead that was already marked Converted before this column existed.
+update public.leads set converted_at = updated_at
+ where status = 'Converted' and converted_at is null;
+
 drop trigger if exists leads_set_updated_at on public.leads;
 create trigger leads_set_updated_at
   before update on public.leads

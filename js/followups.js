@@ -408,6 +408,10 @@ $('person-change').addEventListener('click', () => { chosen = null; showChosen()
 $('p-search').addEventListener('input', () => { clearTimeout(pickTimer); pickTimer = setTimeout(runPicker, 250); });
 form.addEventListener('submit', onSubmit);
 
+// followups.html?tab=overdue (from the dashboard); ignored if not a real tab.
+const wantedTab = new URLSearchParams(location.search).get('tab');
+if (Object.hasOwn(EMPTY, wantedTab ?? '')) tab = wantedTab;
+
 const user = await requireAuth();
 if (user) {
   renderNav(user);

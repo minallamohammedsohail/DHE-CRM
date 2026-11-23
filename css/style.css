@@ -298,3 +298,35 @@ dialog { max-height: 92vh; overflow-y: auto; }
   .data-table td.cell-actions .action-link,
   .data-table td.cell-phone .action-link { padding: 0; }
 }
+
+/* ---- Dashboard ---------------------------------------------------------- */
+.header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.tile {
+  display: block; padding: 14px 16px; text-decoration: none; color: var(--text);
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+a.tile:hover { border-color: var(--navy); }
+.tile p { margin: 0; }
+.tile-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.tile-value { margin-top: 6px; font-size: 26px; font-weight: 700; line-height: 1.2; color: var(--navy); overflow-wrap: anywhere; }
+.tile-note { margin-top: 4px; min-height: 18px; font-size: 12px; color: var(--muted); }
+.tile-alert .tile-value { color: var(--danger); }
+.dash-grid { display: grid; gap: 16px; }
+.dash-grid .card h2 { margin-bottom: 14px; }
+.card-link { margin: 14px 0 0; font-size: 14px; }
+.bar-row { display: grid; grid-template-columns: 92px 1fr 36px; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 6px; text-decoration: none; color: var(--text); font-size: 14px; }
+.bar-row:hover { background: var(--bg); }
+.bar-track { display: block; height: 10px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.bar-fill { display: block; height: 100%; min-width: 0; border-radius: 999px; background: var(--navy); }
+.bar-count { text-align: right; font-weight: 600; }
+.mini-list a.mini-name { color: var(--navy); }
+@media (min-width: 800px) {
+  .tiles { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dash-grid { grid-template-columns: 1fr 1fr; }
+  .dash-wide { grid-column: 1 / -1; }
+}
+@media (min-width: 1100px) {
+  .tiles { grid-template-columns: repeat(6, 1fr); }
+  .tile-value { font-size: 24px; }
+}

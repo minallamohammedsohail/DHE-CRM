@@ -344,7 +344,7 @@ async function convertLead(lead) {
       if (error) throw error;
     }
 
-    await updateLead(lead.id, { status: 'Converted' });
+    await updateLead(lead.id, { status: 'Converted', converted_at: new Date().toISOString() });
     toast(linkedToExisting ? `Lead linked to customer “${customer.name}”.` : 'Lead converted to a customer.', 'success');
     await load();
   } catch (error) {
@@ -500,12 +500,14 @@ async function onSubmit(event) {
 // ---------------------------------------------------------------------------
 // Start-up
 // ---------------------------------------------------------------------------
-// Links from other pages arrive as leads.html?q=<phone>[&view=archived].
+// Links from other pages arrive as leads.html?q=<phone>[&view=archived] or ?status=<status>.
 const startParams = new URLSearchParams(location.search);
 if (startParams.get('q')) filters.search.value = startParams.get('q').slice(0, 100);
 if (startParams.get('view') === 'archived') filters.view.value = 'archived';
 
 fillOptions(filters.status, LEAD_STATUSES);
+// leads.html?status=Negotiation (from the dashboard pipeline); ignored if not a real status.
+if (LEAD_STATUSES.includes(startParams.get('status'))) filters.status.value = startParams.get('status');
 fillOptions(filters.source, LEAD_SOURCES);
 fillOptions(leadForm.elements.source, LEAD_SOURCES);
 
