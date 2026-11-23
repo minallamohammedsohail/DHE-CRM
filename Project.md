@@ -622,10 +622,12 @@ Deployment (https://dhe-crm-nine.vercel.app/), verified against commit d3b1530:
 - A wrong password on the live site shows "Incorrect email or password.", sends one request from a triple submit, and the form recovers
 - Using the key from the live `config.js`: anonymous read, insert, update and delete are all refused with `permission denied` (42501) on `leads`, `customers`, `followups` and `orders`; sign-up is refused ("Signups not allowed for this instance"); the REST root, which would reveal the schema, requires a secret key
 - `.vercelignore` (added in commit 6c7a8a4) stops Vercel serving `Project.md`, `db/` and `.gitattributes`. They stay in the repository. Verified on the live site: all three, plus `.vercelignore` and `.gitignore`, return 404, and all 15 app files are still served and identical to Git. Edge caching delayed `db/schema.sql` by under a minute.
-- Security headers set by Vercel: only `Strict-Transport-Security`. Not set: `X-Content-Type-Options`, `X-Frame-Options` or CSP `frame-ancestors`, `Referrer-Policy`, `Content-Security-Policy`. Adding them needs a `vercel.json`, which is a new file and needs approval.
+- Security headers (`vercel.json`, commit d99dbc9), sent on every file: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, plus Vercel's HSTS. A full Content-Security-Policy was deliberately not added: the pages use inline module scripts and a CDN, so it would need careful tuning for little gain.
+- Headers verified: all 7 HTML pages returned all 5 new headers on 21 of 21 requests; JavaScript and CSS too. Framing protection verified in a real browser: a never-cached copy of the login page cannot be loaded in an iframe. The app is unaffected: all 15 files still match Git, the login page, styling, Supabase client and a wrong-password sign-in work, and there are no console errors.
+- Caveat: a browser that cached a page before the headers were added keeps using its cached copy, without them, until that file's content next changes. This is how the owner's own test tab behaved. Fresh visitors get the headers immediately.
 
 Next:
-- Phase 7 hardening (section 11): the owner signs in on the deployed site and works through each page on a real phone; decide on the security headers (needs a `vercel.json`); change the passwords used during testing; decide who else gets an account
+- Phase 7 hardening (section 11): the owner signs in on the deployed site and works through each page on a real phone; change the passwords used during testing; decide who else gets an account
 
 ## 18. Resolved Questions
 
