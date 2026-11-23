@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leads — Dream Home Enterprises</title>
+  <link rel="stylesheet" href="css/style.css">
+  <noscript><style>body { visibility: visible; }</style></noscript>
+</head>
+<body>
+  <div class="shell">
+    <nav id="nav" class="sidebar" aria-label="Main"></nav>
+
+    <main class="main">
+      <header class="page-header page-header-row">
+        <div>
+          <h1>Leads</h1>
+          <p id="count" class="muted" aria-live="polite"></p>
+        </div>
+        <button id="add-btn" class="btn" type="button">Add lead</button>
+      </header>
+
+      <form id="filters" class="toolbar" role="search">
+        <div class="field">
+          <label for="f-search">Search</label>
+          <input id="f-search" type="search" placeholder="Name, phone, location, product" maxlength="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-status">Status</label>
+          <select id="f-status"><option value="">All statuses</option></select>
+        </div>
+        <div class="field">
+          <label for="f-source">Source</label>
+          <select id="f-source"><option value="">All sources</option></select>
+        </div>
+        <div class="field">
+          <label for="f-sort">Sort by</label>
+          <select id="f-sort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="name">Name A–Z</option>
+            <option value="budget">Budget, high to low</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-view">Show</label>
+          <select id="f-view">
+            <option value="active">Active leads</option>
+            <option value="archived">Archived leads</option>
+          </select>
+        </div>
+      </form>
+
+      <p id="loading" class="notice">Loading…</p>
+      <p id="empty" class="empty" hidden></p>
+      <div id="table-wrap" class="table-wrap" hidden>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Location</th>
+              <th scope="col">Source</th>
+              <th scope="col">Status</th>
+              <th scope="col">Budget</th>
+              <th scope="col">Added</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="limit-note" class="notice" hidden>Showing the first 200 matches. Use search or filters to narrow the list.</p>
+    </main>
+  </div>
+
+  <!-- Add / edit -->
+  <dialog id="lead-dialog" aria-labelledby="lead-dialog-title">
+    <form id="lead-form">
+      <h2 id="lead-dialog-title">Add lead</h2>
+      <p id="lead-error" class="form-error" role="alert"></p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="l-name">Name *</label>
+          <input id="l-name" name="name" type="text" required maxlength="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="l-phone">Phone *</label>
+          <input id="l-phone" name="phone" type="tel" inputmode="tel" required maxlength="20" autocomplete="off">
+          <p class="hint">Indian mobile number, e.g. 98765 43210 or +91 98765 43210.</p>
+        </div>
+        <div class="field">
+          <label for="l-location">Location</label>
+          <input id="l-location" name="location" type="text" maxlength="120" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="l-source">Source</label>
+          <select id="l-source" name="source"><option value="">Not specified</option></select>
+        </div>
+        <div class="field">
+          <label for="l-product">Interested product</label>
+          <input id="l-product" name="interested_product" type="text" maxlength="150" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="l-budget">Budget (₹)</label>
+          <input id="l-budget" name="budget" type="number" min="0" step="any" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="l-status">Status</label>
+          <select id="l-status" name="status"></select>
+        </div>
+        <div class="field span-2">
+          <label for="l-requirement">Requirement</label>
+          <textarea id="l-requirement" name="requirement" maxlength="1000"></textarea>
+        </div>
+        <div class="field span-2">
+          <label for="l-notes">Notes</label>
+          <textarea id="l-notes" name="notes" maxlength="2000"></textarea>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="lead-cancel" class="btn btn-quiet" type="button">Cancel</button>
+        <button id="lead-save" class="btn" type="submit">Save lead</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- View -->
+  <dialog id="view-dialog" aria-labelledby="view-title">
+    <h2><span id="view-title"></span><span id="view-badge" class="badge"></span></h2>
+    <dl id="view-details" class="details"></dl>
+    <div id="view-actions" class="dialog-actions-wrap"></div>
+  </dialog>
+
+  <!-- Confirm -->
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <h2 id="confirm-title">Please confirm</h2>
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-quiet" value="cancel">Cancel</button>
+        <button id="confirm-ok" class="btn" value="ok">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/leads.js"></script>
+</body>
+</html>

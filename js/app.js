@@ -2,6 +2,7 @@
 // second page needs it, not in anticipation.
 
 import { supabase } from './supabase.js';
+import { TIMEZONE } from './config.js';
 
 export { supabase };
 
@@ -11,12 +12,18 @@ export const BUSINESS_NAME = 'Dream Home Enterprises';
 // menu never contains a link to a page that does not exist.
 const NAV = [
   { href: 'index.html', label: 'Dashboard' },
+  { href: 'leads.html', label: 'Leads' },
 ];
+
+// Status and source lists. Each must always match the CHECK constraint of the
+// same column in db/schema.sql. Never hard-code these strings elsewhere.
+export const LEAD_STATUSES = ['New', 'Contacted', 'Interested', 'Site Visit', 'Negotiation', 'Converted', 'Lost'];
+export const LEAD_SOURCES = ['Walk-in', 'Referral', 'Phone', 'WhatsApp', 'Instagram', 'Website', 'Other'];
 
 // ---------------------------------------------------------------------------
 // Small DOM helper. Text always goes through textContent, never innerHTML.
 // ---------------------------------------------------------------------------
-function el(tag, className, text) {
+export function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
@@ -71,6 +78,61 @@ export function handleError(error, { toast: show = true } = {}) {
   const message = friendlyMessage(error);
   if (show) toast(message, 'error');
   return message;
+}
+
+// ---------------------------------------------------------------------------
+// Phone numbers (Indian mobile numbers only)
+// ---------------------------------------------------------------------------
+// Returns the canonical 10-digit form. Run this before EVERY save so the
+// stored value is consistent and the unique index on customers.phone_norm
+// actually prevents duplicates.
+export function normalizePhone(input) {
+  let digits = String(input ?? '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);                    // 0091...
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2); // 91...
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1); // 0...
+  return digits;
+}
+
+export function isValidIndianMobile(input) {
+  return /^[6-9]\d{9}$/.test(normalizePhone(input));
+}
+
+// "9876543210" -> "98765 43210". Falls back to the raw value if invalid.
+export function formatPhone(input) {
+  const n = normalizePhone(input);
+  return isValidIndianMobile(n) ? `${n.slice(0, 5)} ${n.slice(5)}` : String(input ?? '');
+}
+
+// Links are built only from a validated number, never from raw user text.
+export function telLink(input) {
+  const n = normalizePhone(input);
+  return isValidIndianMobile(n) ? `tel:+91${n}` : null;
+}
+
+export function whatsappLink(input) {
+  const n = normalizePhone(input);
+  return isValidIndianMobile(n) ? `https://wa.me/91${n}` : null;
+}
+
+// ---------------------------------------------------------------------------
+// Formatting (money and dates, in the business timezone)
+// ---------------------------------------------------------------------------
+// Whole rupees show without decimals; anything with paise shows both digits.
+const rupees = { style: 'currency', currency: 'INR' };
+const moneyWhole = new Intl.NumberFormat('en-IN', { ...rupees, minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const moneyPaise = new Intl.NumberFormat('en-IN', { ...rupees, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function formatMoney(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const amount = Number(value);
+  return Number.isInteger(amount) ? moneyWhole.format(amount) : moneyPaise.format(amount);
+}
+
+const dateFormat = new Intl.DateTimeFormat('en-IN', {
+  timeZone: TIMEZONE, day: '2-digit', month: 'short', year: 'numeric',
+});
+export function formatDate(value) {
+  return value ? dateFormat.format(new Date(value)) : '—';
 }
 
 // ---------------------------------------------------------------------------

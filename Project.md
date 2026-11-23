@@ -567,30 +567,49 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phases 0 and 1 complete. Phase 2 (Leads) next.**
+Project status: **Phases 0, 1 and 2 complete. Phase 3 (Customers and lead conversion) next.**
 
 Completed:
 - Technology stack selected and locked
 - Architecture reviewed and approved; decisions recorded in this file
-- Phase 0: `db/schema.sql` applied to Supabase; RLS enabled; anon access verified denied on all four tables; public sign-up disabled; email confirmation off; user accounts created; `js/config.js` filled in; repository on GitHub; placeholder page deployed on Vercel
-- Supabase JS client pinned to 2.119.0 (verified on the CDN)
-- Phase 1: `js/supabase.js`, `js/app.js` (auth gate, nav, toast, error handling), `css/style.css` foundation, `login.html`, shell in `index.html`
+- Phase 0: `db/schema.sql` applied; RLS enabled; anon access verified denied on all four tables; public sign-up disabled; email confirmation off; accounts created; `js/config.js` filled in; repository on GitHub; placeholder deployed on Vercel
+- Phase 1: `js/supabase.js`, `js/app.js` (auth gate, nav, toast, error handling), `css/style.css`, `login.html`, shell in `index.html`. Supabase JS pinned to 2.119.0.
+- Phase 2: Leads. `leads.html`, `js/leads.js`; phone, money and date helpers and status/source constants in `app.js`; list styles in `style.css`; `leads.source` CHECK constraint (applied to the live database).
 
-Phase 1 tested (locally, in the browser):
-- Signed-out visit to `index.html` redirects to `login.html`; no console errors
-- Wrong password shows "Incorrect email or password."; form recovers
-- Double submit sends exactly one auth request
-- Successful login reaches the dashboard shell
-- Desktop sidebar and phone top bar; Menu toggle opens and closes; current page highlighted
-- Sign out redirects to login and clears the stored session
-- Signed-in user can insert, read, update and delete in all four tables. Verified: defaults, generated `phone_norm` and `balance`, `created_by` filled automatically, `updated_at` trigger, duplicate customer phone rejected, invalid lead status rejected, follow-up without a parent rejected, order blocks deletion of its customer. All test rows removed afterwards.
+Decisions applied in Phase 2 (defaults approved):
+- D1 `leads.source` is a fixed list: Walk-in, Referral, Phone, WhatsApp, Instagram, Website, Other (CHECK constraint, matched by `LEAD_SOURCES`)
+- D2 any signed-in user may restore an archived lead
+- D3 "Converted" is not offered in manual status controls; Phase 3 conversion sets it. A Converted lead's status is locked.
+- D4 a duplicate phone (against leads and customers) warns and asks "Save anyway"; it never blocks
+- D5 one `notes` text field per lead; no note history
 
-Not tested:
-- Signing out in a second tab signing out the first (code present in `requireAuth`, not exercised)
-- Production Vercel deployment of the Phase 1 code (not yet checked)
+Phase 2 tested (locally, signed in, with ~18 temporary test rows, all deleted afterwards):
+- Add with valid data; phone `+91 98765-00101` stored as `9876500101`; name trimmed
+- Invalid input: empty required fields, phones `12345`, `5876543210`, `abcdefghij` rejected with a message and nothing saved; negative budget blocked
+- Duplicate-phone warning: Cancel saves nothing, "Save anyway" saves (repeated over several rounds, including a fresh page load)
+- Double submission: three submits in one tick create one row
+- Edit: prefilled form, no duplicate prompt when the phone is unchanged, `updated_at` moves, `created_at` and `created_by` do not; invalid phone keeps the dialog open
+- Inline status change; Converted lead's select and edit-form status are locked and an edit does not change it
+- Archive: confirmation, Cancel keeps the lead, confirm hides it; Archived view; Restore
+- Search: name, location, product, phone digits (spaced or partial), case-insensitive, multi-word across fields, text containing commas, brackets, apostrophes, quotes and wildcards (no errors)
+- Status and source filters, combined; all four sorts
+- Empty states: no leads, no matches, no archived leads
+- A `<script>` name and an `<img onerror>` product render as plain text with no injected elements
+- Network failure: the client retries about 8 seconds, then shows a friendly message; typed data is kept and Save re-enables
+- Layout at desktop and phone width (cards on phones, filters in two columns)
+
+Known behaviour and limits:
+- With no network, a load or save shows no error for about 8 seconds while the Supabase client retries
+- The list shows at most 200 matches, with a note to narrow the search
+- During testing, once, after clicking Cancel on the duplicate warning the Save button did not recover and "Save anyway" did not complete. It did not recur in more than five later attempts (including a fresh page load) and the cause is unknown.
+- Modal dialogs could not be captured in screenshots; the phone-width Add dialog was checked by measurement only (337px wide in a 375px screen, scrolls inside), not by eye
+- Not tested: the deployed Vercel site with Phase 1 and 2 code; signing out in a second tab
+
+Not built yet, by design (each arrives with its phase):
+- "Schedule follow-up" on a lead (Phase 4) and "Convert to customer" (Phase 3)
 
 Next:
-- Phase 2: Leads
+- Phase 3: Customers and lead-to-customer conversion with phone deduplication
 
 ## 18. Open Questions
 

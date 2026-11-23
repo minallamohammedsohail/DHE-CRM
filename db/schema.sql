@@ -75,6 +75,14 @@ comment on table  public.leads             is 'Enquiries and prospects. Archived
 comment on column public.leads.phone_norm  is 'Digits only, generated. For search and dedupe.';
 comment on column public.leads.archived_at is 'NULL = active. Set by archive, cleared by restore.';
 
+-- Lead source is a fixed list so the filter dropdown stays clean. NULL is
+-- allowed (source is optional). The same list lives in LEAD_SOURCES in
+-- js/app.js; the two must always agree.
+alter table public.leads drop constraint if exists leads_source_check;
+alter table public.leads add constraint leads_source_check
+  check (source is null or source in ('Walk-in','Referral','Phone',
+                                      'WhatsApp','Instagram','Website','Other'));
+
 drop trigger if exists leads_set_updated_at on public.leads;
 create trigger leads_set_updated_at
   before update on public.leads
