@@ -567,7 +567,7 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phases 0 to 5 built. Phase 6 (Dashboard) next. One database change from Phase 5 still needs to be applied and verified (see "Pending" below).**
+Project status: **Phases 0 to 5 complete. Phase 6 (Dashboard) next.**
 
 Completed:
 - Technology stack selected and locked; architecture reviewed and approved
@@ -605,10 +605,11 @@ Phase 5 tested (locally, signed in, temporary rows, all deleted afterwards):
 - Regression: lead search and conversion, follow-up picker and creation; no JavaScript errors
 - Layout at desktop and phone width; no horizontal overflow on phones; fixed cramped filters, wrapping actions, and row actions that were only 24px tall (now 46px on phones)
 
-Pending:
-- `db/schema.sql` now contains the `orders_unit_check` constraint, but it has NOT yet been applied to the live database, so it is not verified. Until it is applied, the database accepts any unit text (the form still only offers the three).
-- Apply this in the Supabase SQL Editor, then test that an invalid unit is rejected:
-  `alter table public.orders drop constraint if exists orders_unit_check; alter table public.orders add constraint orders_unit_check check (unit is null or unit in ('Box','Piece','Sq. ft.'));`
+Database constraint `orders_unit_check` (applied to the live database and verified):
+- Rejected with error 23514 naming `orders_unit_check`: `Kg`, `Sq. m`, `box` (lowercase), `Box ` (trailing space), `Sq.ft.` and an empty string
+- Accepted: `Box`, `Piece`, `Sq. ft.` and no unit (NULL)
+- An update to an invalid unit is also rejected
+- The app stores NULL, never an empty string, when no unit is chosen
 
 Known behaviour and limits:
 - No per-payment history and no order numbers (orders are identified by customer, date and description); either would be a schema addition
