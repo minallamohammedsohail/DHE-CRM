@@ -14,11 +14,13 @@ const NAV = [
   { href: 'index.html', label: 'Dashboard' },
   { href: 'leads.html', label: 'Leads' },
   { href: 'customers.html', label: 'Customers' },
+  { href: 'followups.html', label: 'Follow-ups' },
 ];
 
 // Status and source lists. Each must always match the CHECK constraint of the
 // same column in db/schema.sql. Never hard-code these strings elsewhere.
 export const LEAD_STATUSES = ['New', 'Contacted', 'Interested', 'Site Visit', 'Negotiation', 'Converted', 'Lost'];
+export const FOLLOWUP_STATUSES = ['Pending', 'Completed', 'Cancelled'];
 export const LEAD_SOURCES = ['Walk-in', 'Referral', 'Phone', 'WhatsApp', 'Instagram', 'Website', 'Other'];
 
 // ---------------------------------------------------------------------------
@@ -134,6 +136,62 @@ const dateFormat = new Intl.DateTimeFormat('en-IN', {
 });
 export function formatDate(value) {
   return value ? dateFormat.format(new Date(value)) : '—';
+}
+
+// ---------------------------------------------------------------------------
+// Day boundaries and date-times in the business timezone (Asia/Kolkata)
+// ---------------------------------------------------------------------------
+// India has no daylight saving, so a fixed +05:30 offset is exact. If TIMEZONE
+// in config.js ever changes, this offset must change with it.
+const IST_OFFSET = '+05:30';
+
+const istDay = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+});
+const istClock = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+const dateTimeFormat = new Intl.DateTimeFormat('en-IN', {
+  timeZone: TIMEZONE, day: '2-digit', month: 'short', year: 'numeric',
+  hour: 'numeric', minute: '2-digit', hour12: true,
+});
+
+// "2026-11-23" — the calendar date in IST at the given moment.
+export function istDateString(now = new Date()) {
+  return istDay.format(now);
+}
+
+// [start, end) of the IST calendar day containing `now`, as ISO strings.
+export function dayRangeIST(now = new Date()) {
+  const start = new Date(`${istDateString(now)}T00:00:00${IST_OFFSET}`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+// ISO timestamp -> "2026-11-23T10:00", the IST wall-clock value for a
+// <input type="datetime-local">.
+export function toInputValueIST(value) {
+  const parts = Object.fromEntries(istClock.formatToParts(new Date(value)).map((p) => [p.type, p.value]));
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+// "2026-11-23T10:00" (entered as IST) -> ISO timestamp, or null if invalid.
+export function fromInputValueIST(text) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(text))) return null;
+  const date = new Date(`${text}:00${IST_OFFSET}`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+// Tomorrow at 10:00 IST, as a datetime-local value.
+export function defaultFollowupInputValue(now = new Date()) {
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return `${istDateString(tomorrow)}T10:00`;
+}
+
+// "23 Nov 2026, 10:00 am" in IST.
+export function formatDateTime(value) {
+  return value ? dateTimeFormat.format(new Date(value)) : '—';
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ import {
   supabase, requireAuth, renderNav, handleError, toast, el,
   confirmAction, orNull, applySearch, tableCell, detail,
   normalizePhone, isValidIndianMobile, formatPhone, telLink, whatsappLink,
-  formatDate,
+  formatDate, formatDateTime,
 } from './app.js';
 
 const PAGE_LIMIT = 200;
@@ -150,6 +150,9 @@ function openView(customer) {
     chat.rel = 'noopener noreferrer';
     actions.append(chat);
   }
+  const schedule = el('a', 'btn btn-quiet', 'Schedule follow-up');
+  schedule.href = `followups.html?customer=${encodeURIComponent(customer.id)}`;
+  actions.append(schedule);
   const edit = el('button', 'btn btn-quiet', 'Edit');
   edit.type = 'button';
   edit.addEventListener('click', () => { viewDialog.close(); openForm(customer); });
@@ -158,7 +161,7 @@ function openView(customer) {
   close.addEventListener('click', () => viewDialog.close());
   actions.append(edit, close);
 
-  loadLeads(customer);
+  loadLeadsAndFollowups(customer);
   viewDialog.showModal();
 }
 
@@ -175,11 +178,11 @@ async function loadLeads(customer) {
       .or(clauses.join(','))
       .order('created_at', { ascending: false });
     if (error) throw error;
-    if (viewDialog.open === false) return;
+    if (viewDialog.open === false) return [];
 
     if (data.length === 0) {
       box.replaceChildren(el('p', 'muted', 'No leads are linked to this customer.'));
-      return;
+      return [];
     }
     const list = el('ul', 'mini-list');
     for (const lead of data) {
@@ -191,9 +194,52 @@ async function loadLeads(customer) {
       list.append(row);
     }
     box.replaceChildren(list);
+    return data;
   } catch (error) {
     handleError(error);
     box.replaceChildren(el('p', 'muted', 'Could not load this customer’s leads.'));
+    return [];
+  }
+}
+
+async function loadLeadsAndFollowups(customer) {
+  const leads = await loadLeads(customer);
+  await loadFollowups(customer, leads);
+}
+
+// Follow-up history: the customer's own, plus those of its associated leads
+// (a converted lead's earlier follow-ups stay visible here).
+async function loadFollowups(customer, leads) {
+  const box = $('view-followups');
+  box.replaceChildren(el('p', 'muted', 'Loading…'));
+  try {
+    const clauses = [`customer_id.eq.${customer.id}`];
+    if (leads.length) clauses.push(`lead_id.in.(${leads.map((l) => l.id).join(',')})`);
+    const { data, error } = await supabase.from('followups')
+      .select('id, scheduled_at, note, status, lead_id, lead:leads(name)')
+      .or(clauses.join(','))
+      .order('scheduled_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    if (viewDialog.open === false) return;
+
+    if (data.length === 0) {
+      box.replaceChildren(el('p', 'muted', 'No follow-ups yet.'));
+      return;
+    }
+    const list = el('ul', 'mini-list');
+    for (const item of data) {
+      const row = el('li');
+      row.append(el('span', 'mini-name', formatDateTime(item.scheduled_at)));
+      row.append(el('span', 'badge', item.status));
+      row.append(el('span', 'muted', item.lead_id && item.lead ? `Lead: ${item.lead.name}` : 'Customer'));
+      if (item.note) row.append(el('span', 'mini-note', item.note));
+      list.append(row);
+    }
+    box.replaceChildren(list);
+  } catch (error) {
+    handleError(error);
+    box.replaceChildren(el('p', 'muted', 'Could not load follow-ups.'));
   }
 }
 

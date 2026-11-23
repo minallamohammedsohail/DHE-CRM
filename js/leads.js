@@ -237,7 +237,9 @@ function openView(lead) {
     const convert = el('button', 'btn', 'Convert to customer');
     convert.type = 'button';
     convert.addEventListener('click', () => convertLead(lead));
-    actions.append(convert);
+    const schedule = el('a', 'btn btn-quiet', 'Schedule follow-up');
+    schedule.href = `followups.html?lead=${encodeURIComponent(lead.id)}`;
+    actions.append(convert, schedule);
   }
 
   if (archived) {
@@ -267,20 +269,34 @@ async function archiveLead(lead, button) {
   viewDialog.close();
   const ok = await confirmAction(
     'Archive this lead?',
-    `“${lead.name}” will be hidden from the lead list. You can restore it later from the Archived view.`,
+    `“${lead.name}” will be hidden from the lead list, and any pending follow-ups for this lead will be cancelled. You can restore the lead later from the Archived view; cancelled follow-ups are not restored.`,
     'Archive', true,
   );
   if (!ok) return;
   button.disabled = true;
   try {
     await updateLead(lead.id, { archived_at: new Date().toISOString() });
-    toast('Lead archived.', 'success');
-    await load();
   } catch (error) {
     handleError(error);
-  } finally {
     button.disabled = false;
+    return;
   }
+
+  // The lead is archived. Now stop its pending follow-ups from showing up as
+  // work to do. If this step fails, say so rather than hiding it.
+  let cancelled = 0;
+  try {
+    const { data, error } = await supabase.from('followups').update({ status: 'Cancelled', completed_at: null })
+      .eq('lead_id', lead.id).eq('status', 'Pending').select('id');
+    if (error) throw error;
+    cancelled = data.length;
+    toast(cancelled ? `Lead archived. ${cancelled} follow-up${cancelled === 1 ? '' : 's'} cancelled.` : 'Lead archived.', 'success');
+  } catch (error) {
+    handleError(error, { toast: false });
+    toast('Lead archived, but its pending follow-ups could not be cancelled. Cancel them from the Follow-ups page.', 'error');
+  }
+  button.disabled = false;
+  await load();
 }
 
 // Converts a lead into a customer. Safe to run again after a failure: it looks
@@ -484,6 +500,11 @@ async function onSubmit(event) {
 // ---------------------------------------------------------------------------
 // Start-up
 // ---------------------------------------------------------------------------
+// Links from other pages arrive as leads.html?q=<phone>[&view=archived].
+const startParams = new URLSearchParams(location.search);
+if (startParams.get('q')) filters.search.value = startParams.get('q').slice(0, 100);
+if (startParams.get('view') === 'archived') filters.view.value = 'archived';
+
 fillOptions(filters.status, LEAD_STATUSES);
 fillOptions(filters.source, LEAD_SOURCES);
 fillOptions(leadForm.elements.source, LEAD_SOURCES);

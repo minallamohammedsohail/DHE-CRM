@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Follow-ups — Dream Home Enterprises</title>
+  <link rel="stylesheet" href="css/style.css">
+  <noscript><style>body { visibility: visible; }</style></noscript>
+</head>
+<body>
+  <div class="shell">
+    <nav id="nav" class="sidebar" aria-label="Main"></nav>
+
+    <main class="main">
+      <header class="page-header page-header-row">
+        <div>
+          <h1>Follow-ups</h1>
+          <p class="muted">Times are shown in India time (IST).</p>
+        </div>
+        <button id="add-btn" class="btn" type="button">Add follow-up</button>
+      </header>
+
+      <div id="tabs" class="tabs" role="group" aria-label="Follow-up lists">
+        <button type="button" class="tab" data-tab="today">Today <span class="tab-count" id="n-today"></span></button>
+        <button type="button" class="tab" data-tab="overdue">Overdue <span class="tab-count" id="n-overdue"></span></button>
+        <button type="button" class="tab" data-tab="upcoming">Upcoming <span class="tab-count" id="n-upcoming"></span></button>
+        <button type="button" class="tab" data-tab="done">Done <span class="tab-count" id="n-done"></span></button>
+      </div>
+
+      <p id="loading" class="notice">Loading…</p>
+      <p id="empty" class="empty" hidden></p>
+      <div id="table-wrap" class="table-wrap" hidden>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Due</th>
+              <th scope="col">For</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Note</th>
+              <th scope="col">Status</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="limit-note" class="notice" hidden>Showing the first 200. The oldest or newest are listed first depending on the tab.</p>
+    </main>
+  </div>
+
+  <!-- Add / edit -->
+  <dialog id="followup-dialog" aria-labelledby="followup-dialog-title">
+    <form id="followup-form">
+      <h2 id="followup-dialog-title">Add follow-up</h2>
+      <p id="followup-error" class="form-error" role="alert"></p>
+
+      <div class="field">
+        <label id="person-label" for="p-search">For *</label>
+        <div id="person-chosen" class="chosen" hidden>
+          <span id="person-name"></span>
+          <button id="person-change" type="button" class="link-btn">Change</button>
+        </div>
+        <div id="person-picker">
+          <input id="p-search" type="search" placeholder="Search a lead or customer by name or phone" maxlength="100" autocomplete="off">
+          <ul id="p-results" class="picker-results"></ul>
+          <p id="p-hint" class="hint">Type at least 2 letters or 3 digits.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-when">Due (India time) *</label>
+        <input id="f-when" name="scheduled" type="datetime-local" required min="2000-01-01T00:00" max="2100-12-31T23:59">
+      </div>
+      <div class="field">
+        <label for="f-note">Note</label>
+        <textarea id="f-note" name="note" maxlength="500" placeholder="What to talk about or do"></textarea>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="followup-cancel" class="btn btn-quiet" type="button">Cancel</button>
+        <button id="followup-save" class="btn" type="submit">Save follow-up</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/followups.js"></script>
+</body>
+</html>

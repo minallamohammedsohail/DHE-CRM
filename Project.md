@@ -567,54 +567,51 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phases 0, 1, 2 and 3 complete. Phase 4 (Follow-ups) next.**
+Project status: **Phases 0 to 4 complete. Phase 5 (Orders) next.**
 
 Completed:
 - Technology stack selected and locked; architecture reviewed and approved
 - Phase 0: schema applied; RLS enabled and verified; sign-up disabled; accounts created; GitHub repository; Vercel placeholder
 - Phase 1: auth gate, shared nav, toast and error handling, style foundation, login page
-- Phase 2: Leads (list, add, view, edit, inline status, archive/restore, search, filters, sort, call/WhatsApp). `leads.source` is a fixed list enforced by a CHECK constraint.
-- Phase 3: Customers and lead conversion. `customers.html`, `js/customers.js`; Convert and View customer on the lead view dialog. No schema change.
+- Phase 2: Leads (list, add, view, edit, inline status, archive/restore, search, filters, sort, call/WhatsApp)
+- Phase 3: Customers and lead conversion (find or create by phone, link to an existing customer, retry-safe)
+- Phase 4: Follow-ups. `followups.html`, `js/followups.js`; IST day and date-time helpers in `app.js`; "Schedule follow-up" on lead and customer dialogs; follow-up history on the customer profile; archiving a lead cancels its pending follow-ups. No schema change.
 
-Shared helpers now in `app.js` (used by two or more pages): `confirmAction` (builds its own native dialog, so pages carry no confirm markup), `orNull`, `applySearch` (every search word must match), `tableCell`, `detail`.
+Decisions applied in Phase 4 (defaults approved):
+- D1 buckets are IST calendar days: Today = pending and due any time today; Overdue = pending and due before today; Upcoming = pending and due after today. Done = Completed or Cancelled.
+- D2 times are entered and shown in IST whatever the browser's timezone; default is tomorrow 10:00. A fixed +05:30 offset is used because India has no daylight saving; if `TIMEZONE` in `config.js` ever changes, `IST_OFFSET` in `app.js` must change with it.
+- D3 "Add follow-up" on the page uses a search picker (active leads that are not Converted, and customers). "Schedule follow-up" on a lead (active, not Converted) or customer opens `followups.html?lead=<id>` or `?customer=<id>` with that person chosen. Invalid, missing and archived targets show a message instead.
+- D4 Complete (no confirmation), Cancel (with confirmation), Edit time and note while Pending, Reopen from Done. No outcome note. Past dates are allowed (they show as Overdue); years outside 2000 to 2100 are rejected.
+- D5 archiving a lead also cancels its pending follow-ups; the confirmation says so; restoring does not revive them. If cancelling fails the lead stays archived and the user is told to cancel them from the Follow-ups page.
+- D6 customer profile shows follow-ups for the customer and for its associated leads
+- D7 a Converted lead's pending follow-ups stay on the lead, labelled "Converted", and are not moved
+- Links between pages: leads open with `?q=<phone>[&view=archived]`, customers with `?q=<phone>`
 
-Decisions applied in Phase 3 (defaults approved):
-- D1 conversion is two client steps (find or create the customer, then mark the lead Converted) and is safe to re-run after a failure; the unique index on `customers.phone_norm` prevents a second customer even under a race
-- D2 if a customer already has the lead's number, the user is asked to link instead of creating a second record; the customer's origin lead is set only if empty, never overwritten
-- D3 any active lead that is not already Converted can convert, including Lost; archived leads must be restored first
-- D4 conversion copies name, phone, location and the link back to the lead; requirement, product, budget and notes stay on the lead
-- D5 follow-up history and order history on the customer profile arrive with Phases 4 and 5
-- D6 customers cannot be deleted or archived from the UI
-- D7 adding a customer by hand: a duplicate customer phone is blocked; an active lead with the same phone triggers a warning with "Add anyway"
-- A customer's profile lists leads sharing its phone plus its origin lead (archived ones labelled). "View customer" on a converted lead opens `customers.html?q=<phone>`.
-
-Phase 3 tested (locally, signed in, with temporary rows, all deleted afterwards):
-- Phase 2 regression on the refactored `leads.js`: search (name, multi-word, punctuation, phone), shared confirm dialog, archive cancel/confirm, restore, duplicate-lead warning and cancel, triple-submit creates one row
-- Conversion: cancel creates nothing; new customer has the right name, phone, location, origin link and `created_by`; lead becomes Converted and its status control locks; View customer link correct
-- Conversion onto an existing customer: link prompt, no second customer, origin set when empty, origin kept when already set; a Lost lead converts
-- Failure between the two steps (lead update blocked): customer exists, lead stays New, friendly error; retry finds the customer and completes it with one customer total
-- Triple click on Convert: one prompt, one customer
-- Race: a customer created by someone else while the confirm dialog was open: the unique index is hit, the existing customer is reused, no error shown
-- Archived leads offer Restore, not Convert
-- Customers: `?q=` pre-fills search; search (name, location, phone, multi-word, punctuation, no match); three sorts; empty states ("No customers yet", "No customers match"); script-tag name and a hostile `?q=<img onerror>` stay inert text
-- Profile: origin lead and phone-matched leads listed; customer with no leads shows a message
-- Form: invalid phones rejected; valid add with `+91 98765-00601` stored as `9876500601`; duplicate customer phone blocked; lead-overlap warning (cancel and confirm); triple-submit creates one row; unique-index fallback shows "A customer with this number already exists."
-- Edit: prefilled; `updated_at` moves, `created_at` and `created_by` do not; changing to another customer's number is blocked; invalid phone rejected; a new number saves
-- Layout at desktop and phone width
+Phase 4 tested (locally, signed in, with temporary rows, all deleted afterwards):
+- IST helpers: 14 checks in Node at the 23:59 / 00:00 IST edges, with the machine timezone left default, forced to Los Angeles and forced to Auckland; all pass
+- Live bucket boundaries with real rows at yesterday 23:59, today 00:00, today 23:59 and tomorrow 00:00 land in Overdue, Today, Today and Upcoming; tab counts match; "N days late" badges
+- Row contents: due time in IST, contact (customer else lead) with correct `tel:` and `wa.me/91` links, Lead/Customer/Converted/Archived labels, links to the related lead or customer
+- Complete, Cancel (dismiss and confirm), Edit (prefilled in IST; 15:30 IST stored as 10:00 UTC; parent unchanged; `updated_at` moves), Reopen (a reopened follow-up from yesterday lands in Overdue)
+- Add: picker (too short, by name, by phone, no match, hostile characters), Converted leads excluded, nobody chosen rejected, Change person, empty date and years 1999 and 2101 blocked, triple-submit creates one row, new item shows on the tab it belongs to
+- Pre-filled links: lead, customer, invalid id, valid id that does not exist, archived lead
+- D5: prompt text, dismiss changes nothing, confirm cancels 3 pending follow-ups, restore does not revive them, partial failure message when the cancel step fails (lead archived, follow-up still pending, labelled Archived and linkable)
+- Customer profile history, including a converted lead's earlier follow-up; empty history message
+- A script tag in a lead name and an `<img onerror>` in a note render as plain text; nothing executed
+- Offline load shows a friendly message after about 7 seconds
+- Regression on Phase 2 and 3: search, conversion, duplicate-phone warning and cancel
+- Layout at desktop and phone width; fixed a badge that wrapped mid-word
 
 Known behaviour and limits:
-- With no network, a load or save shows no error for about 8 seconds while the Supabase client retries (first seen in Phase 2; the customers page uses the same pattern but the offline case was not re-run here)
-- Lists show at most 200 matches, with a note
-- Conversion is not one database transaction; the retry-safe design (D1) covers the gap
-- Modal dialogs cannot be captured in screenshots, so dialog layout on phones was checked by measurement in Phase 2 and not re-checked visually for the customer dialogs
+- With no network, loads and saves show no error for about 7 to 8 seconds while the Supabase client retries
+- Lists show at most 200 rows
+- "Overdue" and "Today" rely on the browser's clock being correct
+- Pending follow-ups of a lead archived before this phase are not cancelled retroactively (there were none)
+- Modal dialogs cannot be captured in screenshots; dialogs were checked through the page's state, not by eye
 - Carried from Phase 2: one unexplained, unreproduced stuck Save button after a duplicate-warning Cancel
-- Not tested: the deployed Vercel site with Phase 1 to 3 code; signing out in a second tab
-
-Not built yet, by design:
-- "Schedule follow-up" on leads and customers (Phase 4); follow-up history and order history on the customer profile (Phases 4 and 5)
+- Not tested: the deployed Vercel site with Phase 1 to 4 code; signing out in a second tab
 
 Next:
-- Phase 4: Follow-ups (today, overdue, upcoming; complete; cancel; schedule from a lead or customer)
+- Phase 5: Orders (create, edit, record payment, outstanding balance, status, history by customer, search and filter). Open questions O2 (overpayment) and O4 (unit list) apply; O3 (revenue definition) is needed for Phase 6.
 
 ## 18. Open Questions
 
