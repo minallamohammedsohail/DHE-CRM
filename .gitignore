@@ -1,0 +1,17 @@
+# Secrets — js/config.js is deliberately NOT here (anon key is public by design,
+# protected by RLS). Nothing in this project needs a real secret in the repo.
+.env
+.env.*
+*.key
+*.pem
+
+# Local scratch
+*.bak
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
