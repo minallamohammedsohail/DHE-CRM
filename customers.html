@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customers — Dream Home Enterprises</title>
+  <link rel="stylesheet" href="css/style.css">
+  <noscript><style>body { visibility: visible; }</style></noscript>
+</head>
+<body>
+  <div class="shell">
+    <nav id="nav" class="sidebar" aria-label="Main"></nav>
+
+    <main class="main">
+      <header class="page-header page-header-row">
+        <div>
+          <h1>Customers</h1>
+          <p id="count" class="muted" aria-live="polite"></p>
+        </div>
+        <button id="add-btn" class="btn" type="button">Add customer</button>
+      </header>
+
+      <form id="filters" class="toolbar toolbar-customers" role="search">
+        <div class="field">
+          <label for="f-search">Search</label>
+          <input id="f-search" type="search" placeholder="Name, phone, location" maxlength="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-sort">Sort by</label>
+          <select id="f-sort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="name">Name A–Z</option>
+          </select>
+        </div>
+      </form>
+
+      <p id="loading" class="notice">Loading…</p>
+      <p id="empty" class="empty" hidden></p>
+      <div id="table-wrap" class="table-wrap" hidden>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Location</th>
+              <th scope="col">Added</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="limit-note" class="notice" hidden>Showing the first 200 matches. Use search to narrow the list.</p>
+    </main>
+  </div>
+
+  <!-- Add / edit -->
+  <dialog id="customer-dialog" aria-labelledby="customer-dialog-title">
+    <form id="customer-form">
+      <h2 id="customer-dialog-title">Add customer</h2>
+      <p id="customer-error" class="form-error" role="alert"></p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="c-name">Name *</label>
+          <input id="c-name" name="name" type="text" required maxlength="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="c-phone">Phone *</label>
+          <input id="c-phone" name="phone" type="tel" inputmode="tel" required maxlength="20" autocomplete="off">
+          <p class="hint">Indian mobile number, e.g. 98765 43210 or +91 98765 43210.</p>
+        </div>
+        <div class="field span-2">
+          <label for="c-location">Location</label>
+          <input id="c-location" name="location" type="text" maxlength="120" autocomplete="off">
+        </div>
+        <div class="field span-2">
+          <label for="c-notes">Notes</label>
+          <textarea id="c-notes" name="notes" maxlength="2000"></textarea>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="customer-cancel" class="btn btn-quiet" type="button">Cancel</button>
+        <button id="customer-save" class="btn" type="submit">Save customer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Profile -->
+  <dialog id="view-dialog" aria-labelledby="view-title">
+    <h2 id="view-title"></h2>
+    <dl id="view-details" class="details"></dl>
+
+    <h3 class="section-title">Leads</h3>
+    <div id="view-leads"></div>
+
+    <div id="view-actions" class="dialog-actions-wrap"></div>
+  </dialog>
+
+  <script type="module" src="js/customers.js"></script>
+</body>
+</html>

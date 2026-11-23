@@ -567,49 +567,54 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phases 0, 1 and 2 complete. Phase 3 (Customers and lead conversion) next.**
+Project status: **Phases 0, 1, 2 and 3 complete. Phase 4 (Follow-ups) next.**
 
 Completed:
-- Technology stack selected and locked
-- Architecture reviewed and approved; decisions recorded in this file
-- Phase 0: `db/schema.sql` applied; RLS enabled; anon access verified denied on all four tables; public sign-up disabled; email confirmation off; accounts created; `js/config.js` filled in; repository on GitHub; placeholder deployed on Vercel
-- Phase 1: `js/supabase.js`, `js/app.js` (auth gate, nav, toast, error handling), `css/style.css`, `login.html`, shell in `index.html`. Supabase JS pinned to 2.119.0.
-- Phase 2: Leads. `leads.html`, `js/leads.js`; phone, money and date helpers and status/source constants in `app.js`; list styles in `style.css`; `leads.source` CHECK constraint (applied to the live database).
+- Technology stack selected and locked; architecture reviewed and approved
+- Phase 0: schema applied; RLS enabled and verified; sign-up disabled; accounts created; GitHub repository; Vercel placeholder
+- Phase 1: auth gate, shared nav, toast and error handling, style foundation, login page
+- Phase 2: Leads (list, add, view, edit, inline status, archive/restore, search, filters, sort, call/WhatsApp). `leads.source` is a fixed list enforced by a CHECK constraint.
+- Phase 3: Customers and lead conversion. `customers.html`, `js/customers.js`; Convert and View customer on the lead view dialog. No schema change.
 
-Decisions applied in Phase 2 (defaults approved):
-- D1 `leads.source` is a fixed list: Walk-in, Referral, Phone, WhatsApp, Instagram, Website, Other (CHECK constraint, matched by `LEAD_SOURCES`)
-- D2 any signed-in user may restore an archived lead
-- D3 "Converted" is not offered in manual status controls; Phase 3 conversion sets it. A Converted lead's status is locked.
-- D4 a duplicate phone (against leads and customers) warns and asks "Save anyway"; it never blocks
-- D5 one `notes` text field per lead; no note history
+Shared helpers now in `app.js` (used by two or more pages): `confirmAction` (builds its own native dialog, so pages carry no confirm markup), `orNull`, `applySearch` (every search word must match), `tableCell`, `detail`.
 
-Phase 2 tested (locally, signed in, with ~18 temporary test rows, all deleted afterwards):
-- Add with valid data; phone `+91 98765-00101` stored as `9876500101`; name trimmed
-- Invalid input: empty required fields, phones `12345`, `5876543210`, `abcdefghij` rejected with a message and nothing saved; negative budget blocked
-- Duplicate-phone warning: Cancel saves nothing, "Save anyway" saves (repeated over several rounds, including a fresh page load)
-- Double submission: three submits in one tick create one row
-- Edit: prefilled form, no duplicate prompt when the phone is unchanged, `updated_at` moves, `created_at` and `created_by` do not; invalid phone keeps the dialog open
-- Inline status change; Converted lead's select and edit-form status are locked and an edit does not change it
-- Archive: confirmation, Cancel keeps the lead, confirm hides it; Archived view; Restore
-- Search: name, location, product, phone digits (spaced or partial), case-insensitive, multi-word across fields, text containing commas, brackets, apostrophes, quotes and wildcards (no errors)
-- Status and source filters, combined; all four sorts
-- Empty states: no leads, no matches, no archived leads
-- A `<script>` name and an `<img onerror>` product render as plain text with no injected elements
-- Network failure: the client retries about 8 seconds, then shows a friendly message; typed data is kept and Save re-enables
-- Layout at desktop and phone width (cards on phones, filters in two columns)
+Decisions applied in Phase 3 (defaults approved):
+- D1 conversion is two client steps (find or create the customer, then mark the lead Converted) and is safe to re-run after a failure; the unique index on `customers.phone_norm` prevents a second customer even under a race
+- D2 if a customer already has the lead's number, the user is asked to link instead of creating a second record; the customer's origin lead is set only if empty, never overwritten
+- D3 any active lead that is not already Converted can convert, including Lost; archived leads must be restored first
+- D4 conversion copies name, phone, location and the link back to the lead; requirement, product, budget and notes stay on the lead
+- D5 follow-up history and order history on the customer profile arrive with Phases 4 and 5
+- D6 customers cannot be deleted or archived from the UI
+- D7 adding a customer by hand: a duplicate customer phone is blocked; an active lead with the same phone triggers a warning with "Add anyway"
+- A customer's profile lists leads sharing its phone plus its origin lead (archived ones labelled). "View customer" on a converted lead opens `customers.html?q=<phone>`.
+
+Phase 3 tested (locally, signed in, with temporary rows, all deleted afterwards):
+- Phase 2 regression on the refactored `leads.js`: search (name, multi-word, punctuation, phone), shared confirm dialog, archive cancel/confirm, restore, duplicate-lead warning and cancel, triple-submit creates one row
+- Conversion: cancel creates nothing; new customer has the right name, phone, location, origin link and `created_by`; lead becomes Converted and its status control locks; View customer link correct
+- Conversion onto an existing customer: link prompt, no second customer, origin set when empty, origin kept when already set; a Lost lead converts
+- Failure between the two steps (lead update blocked): customer exists, lead stays New, friendly error; retry finds the customer and completes it with one customer total
+- Triple click on Convert: one prompt, one customer
+- Race: a customer created by someone else while the confirm dialog was open: the unique index is hit, the existing customer is reused, no error shown
+- Archived leads offer Restore, not Convert
+- Customers: `?q=` pre-fills search; search (name, location, phone, multi-word, punctuation, no match); three sorts; empty states ("No customers yet", "No customers match"); script-tag name and a hostile `?q=<img onerror>` stay inert text
+- Profile: origin lead and phone-matched leads listed; customer with no leads shows a message
+- Form: invalid phones rejected; valid add with `+91 98765-00601` stored as `9876500601`; duplicate customer phone blocked; lead-overlap warning (cancel and confirm); triple-submit creates one row; unique-index fallback shows "A customer with this number already exists."
+- Edit: prefilled; `updated_at` moves, `created_at` and `created_by` do not; changing to another customer's number is blocked; invalid phone rejected; a new number saves
+- Layout at desktop and phone width
 
 Known behaviour and limits:
-- With no network, a load or save shows no error for about 8 seconds while the Supabase client retries
-- The list shows at most 200 matches, with a note to narrow the search
-- During testing, once, after clicking Cancel on the duplicate warning the Save button did not recover and "Save anyway" did not complete. It did not recur in more than five later attempts (including a fresh page load) and the cause is unknown.
-- Modal dialogs could not be captured in screenshots; the phone-width Add dialog was checked by measurement only (337px wide in a 375px screen, scrolls inside), not by eye
-- Not tested: the deployed Vercel site with Phase 1 and 2 code; signing out in a second tab
+- With no network, a load or save shows no error for about 8 seconds while the Supabase client retries (first seen in Phase 2; the customers page uses the same pattern but the offline case was not re-run here)
+- Lists show at most 200 matches, with a note
+- Conversion is not one database transaction; the retry-safe design (D1) covers the gap
+- Modal dialogs cannot be captured in screenshots, so dialog layout on phones was checked by measurement in Phase 2 and not re-checked visually for the customer dialogs
+- Carried from Phase 2: one unexplained, unreproduced stuck Save button after a duplicate-warning Cancel
+- Not tested: the deployed Vercel site with Phase 1 to 3 code; signing out in a second tab
 
-Not built yet, by design (each arrives with its phase):
-- "Schedule follow-up" on a lead (Phase 4) and "Convert to customer" (Phase 3)
+Not built yet, by design:
+- "Schedule follow-up" on leads and customers (Phase 4); follow-up history and order history on the customer profile (Phases 4 and 5)
 
 Next:
-- Phase 3: Customers and lead-to-customer conversion with phone deduplication
+- Phase 4: Follow-ups (today, overdue, upcoming; complete; cancel; schedule from a lead or customer)
 
 ## 18. Open Questions
 

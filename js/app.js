@@ -13,6 +13,7 @@ export const BUSINESS_NAME = 'Dream Home Enterprises';
 const NAV = [
   { href: 'index.html', label: 'Dashboard' },
   { href: 'leads.html', label: 'Leads' },
+  { href: 'customers.html', label: 'Customers' },
 ];
 
 // Status and source lists. Each must always match the CHECK constraint of the
@@ -133,6 +134,88 @@ const dateFormat = new Intl.DateTimeFormat('en-IN', {
 });
 export function formatDate(value) {
   return value ? dateFormat.format(new Date(value)) : '—';
+}
+
+// ---------------------------------------------------------------------------
+// Shared UI helpers used by more than one page
+// ---------------------------------------------------------------------------
+// Empty or whitespace-only text becomes null so the database stores NULL.
+export function orNull(value) {
+  const trimmed = String(value ?? '').trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+// Characters that would break PostgREST's or() filter syntax, or act as
+// wildcards, are removed from search text before it is used.
+function cleanSearch(text) {
+  return text.replace(/[,()"\%*_]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Adds one filter per word, so EVERY word must match at least one of the
+// given text columns (or the digits of the phone column). "amit pune" finds a
+// lead whose name matches "amit" and whose location matches "pune".
+export function applySearch(query, text, columns, phoneColumn) {
+  const words = cleanSearch(text).split(' ').filter(Boolean).slice(0, 6);
+  for (const word of words) {
+    const parts = columns.map((column) => `${column}.ilike.%${word}%`);
+    const digits = word.replace(/\D/g, '');
+    if (phoneColumn && digits.length >= 3) parts.push(`${phoneColumn}.ilike.%${digits}%`);
+    query = query.or(parts.join(','));
+  }
+  return query;
+}
+
+// One <td> for the list tables. On phones the data-label becomes the caption.
+export function tableCell(label, content, className) {
+  const td = el('td', className);
+  td.dataset.label = label;
+  if (content instanceof Node) td.append(content);
+  else td.textContent = content === null || content === undefined || content === '' ? '—' : content;
+  return td;
+}
+
+// A <dt>/<dd> pair for a details list. Skips empty values unless `always`.
+export function detail(term, value, always = false) {
+  if (!always && (value === null || value === undefined || value === '')) return [];
+  return [el('dt', null, term), el('dd', null, value)];
+}
+
+// Native <dialog> confirmation, built on first use so pages need no markup.
+// Resolves true when the user confirms; Cancel and Esc resolve false.
+let confirmParts = null;
+function getConfirmParts() {
+  if (confirmParts) return confirmParts;
+  const dialog = el('dialog');
+  dialog.setAttribute('aria-labelledby', 'confirm-title');
+  const form = el('form');
+  form.method = 'dialog';
+  const title = el('h2', null, '');
+  title.id = 'confirm-title';
+  const text = el('p', null, '');
+  const actions = el('div', 'dialog-actions');
+  const cancel = el('button', 'btn btn-quiet', 'Cancel');
+  cancel.value = 'cancel';
+  const ok = el('button', 'btn', 'Confirm');
+  ok.value = 'ok';
+  actions.append(cancel, ok);
+  form.append(title, text, actions);
+  dialog.append(form);
+  document.body.append(dialog);
+  confirmParts = { dialog, title, text, ok };
+  return confirmParts;
+}
+
+export function confirmAction(title, message, label, danger = false) {
+  const parts = getConfirmParts();
+  return new Promise((resolve) => {
+    parts.title.textContent = title;
+    parts.text.textContent = message;
+    parts.ok.textContent = label;
+    parts.ok.classList.toggle('btn-danger', danger);
+    parts.dialog.returnValue = '';
+    parts.dialog.addEventListener('close', () => resolve(parts.dialog.returnValue === 'ok'), { once: true });
+    parts.dialog.showModal();
+  });
 }
 
 // ---------------------------------------------------------------------------

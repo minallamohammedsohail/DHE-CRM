@@ -3,6 +3,7 @@
 
 import {
   supabase, requireAuth, renderNav, handleError, toast, el,
+  confirmAction, orNull, applySearch, tableCell, detail,
   LEAD_STATUSES, LEAD_SOURCES,
   normalizePhone, isValidIndianMobile, formatPhone, telLink, whatsappLink,
   formatMoney, formatDate,
@@ -28,10 +29,10 @@ const leadForm = $('lead-form');
 const leadError = $('lead-error');
 const saveBtn = $('lead-save');
 const viewDialog = $('view-dialog');
-const confirmDialog = $('confirm-dialog');
 
 let editing = null;      // the lead being edited, or null when adding
 let saving = false;      // double-submission guard for the lead form
+let converting = false;  // double-click guard for lead conversion
 let loadToken = 0;       // ignores out-of-date responses when filters change fast
 
 // ---------------------------------------------------------------------------
@@ -46,25 +47,6 @@ function manualStatuses() {
   return LEAD_STATUSES.filter((s) => s !== 'Converted');
 }
 
-function orNull(value) {
-  const trimmed = String(value ?? '').trim();
-  return trimmed === '' ? null : trimmed;
-}
-
-// Resolves true if the user confirms. Esc and Cancel resolve false.
-function confirmAction(title, message, label, danger = false) {
-  return new Promise((resolve) => {
-    $('confirm-title').textContent = title;
-    $('confirm-text').textContent = message;
-    const ok = $('confirm-ok');
-    ok.textContent = label;
-    ok.classList.toggle('btn-danger', danger);
-    confirmDialog.returnValue = '';
-    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'ok'), { once: true });
-    confirmDialog.showModal();
-  });
-}
-
 // Updates one lead and checks a row was really changed. Without the check, a
 // blocked or missing row would "succeed" silently.
 async function updateLead(id, changes) {
@@ -76,12 +58,6 @@ async function updateLead(id, changes) {
 // ---------------------------------------------------------------------------
 // Loading and rendering the list
 // ---------------------------------------------------------------------------
-// Characters that would break PostgREST's or() filter syntax or act as
-// wildcards are removed from the search text before it is used.
-function cleanSearch(text) {
-  return text.replace(/[,()"\\%*_]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
 function hasActiveFilters() {
   return Boolean(filters.search.value.trim() || filters.status.value || filters.source.value);
 }
@@ -100,15 +76,8 @@ async function load() {
     if (filters.status.value) query = query.eq('status', filters.status.value);
     if (filters.source.value) query = query.eq('source', filters.source.value);
 
-    // Every word must match somewhere (name, location, product, requirement
-    // or phone digits), so "amit pune" finds a lead matching across fields.
-    for (const word of cleanSearch(filters.search.value).split(' ').filter(Boolean).slice(0, 6)) {
-      const parts = [`name.ilike.%${word}%`, `location.ilike.%${word}%`,
-                     `interested_product.ilike.%${word}%`, `requirement.ilike.%${word}%`];
-      const digits = word.replace(/\D/g, '');
-      if (digits.length >= 3) parts.push(`phone_norm.ilike.%${digits}%`);
-      query = query.or(parts.join(','));
-    }
+    query = applySearch(query, filters.search.value,
+      ['name', 'location', 'interested_product', 'requirement'], 'phone_norm');
 
     const [column, options] = SORTS[filters.sort.value];
     query = query.order(column, options);
@@ -153,14 +122,6 @@ function render(leads, count, archived) {
   $('rows').replaceChildren(...leads.map(renderRow));
 }
 
-function cell(label, content, className) {
-  const td = el('td', className);
-  td.dataset.label = label;
-  if (content instanceof Node) td.append(content);
-  else td.textContent = content === null || content === undefined || content === '' ? '—' : content;
-  return td;
-}
-
 function renderRow(lead) {
   const tr = el('tr');
 
@@ -169,14 +130,14 @@ function renderRow(lead) {
   nameButton.addEventListener('click', () => openView(lead));
 
   tr.append(
-    cell('Name', nameButton, 'cell-name'),
-    cell('Phone', formatPhone(lead.phone)),
-    cell('Location', lead.location),
-    cell('Source', lead.source),
-    cell('Status', statusSelect(lead)),
-    cell('Budget', formatMoney(lead.budget)),
-    cell('Added', formatDate(lead.created_at)),
-    cell('Actions', contactLinks(lead), 'cell-actions'),
+    tableCell('Name', nameButton, 'cell-name'),
+    tableCell('Phone', formatPhone(lead.phone)),
+    tableCell('Location', lead.location),
+    tableCell('Source', lead.source),
+    tableCell('Status', statusSelect(lead)),
+    tableCell('Budget', formatMoney(lead.budget)),
+    tableCell('Added', formatDate(lead.created_at)),
+    tableCell('Actions', contactLinks(lead), 'cell-actions'),
   );
   return tr;
 }
@@ -228,13 +189,6 @@ function statusSelect(lead) {
 // ---------------------------------------------------------------------------
 // View dialog
 // ---------------------------------------------------------------------------
-function detail(term, value, always = false) {
-  if (!always && (value === null || value === undefined || value === '')) return [];
-  const dt = el('dt', null, term);
-  const dd = el('dd', null, value);
-  return [dt, dd];
-}
-
 function openView(lead) {
   const archived = Boolean(lead.archived_at);
   $('view-title').textContent = lead.name;
@@ -272,6 +226,18 @@ function openView(lead) {
     chat.target = '_blank';
     chat.rel = 'noopener noreferrer';
     actions.append(chat);
+  }
+
+  if (!archived && lead.status === 'Converted') {
+    // The customers page opens with the search pre-filled from ?q=
+    const viewCustomer = el('a', 'btn', 'View customer');
+    viewCustomer.href = `customers.html?q=${encodeURIComponent(normalizePhone(lead.phone))}`;
+    actions.append(viewCustomer);
+  } else if (!archived) {
+    const convert = el('button', 'btn', 'Convert to customer');
+    convert.type = 'button';
+    convert.addEventListener('click', () => convertLead(lead));
+    actions.append(convert);
   }
 
   if (archived) {
@@ -315,6 +281,68 @@ async function archiveLead(lead, button) {
   } finally {
     button.disabled = false;
   }
+}
+
+// Converts a lead into a customer. Safe to run again after a failure: it looks
+// the customer up by phone first, and the unique index on customers.phone_norm
+// stops a second record even if two people convert at once.
+async function convertLead(lead) {
+  if (converting) return; // double-click guard
+  converting = true;
+  viewDialog.close();
+  try {
+    const phone = normalizePhone(lead.phone);
+    let customer = await findCustomerByPhone(phone);
+
+    const proceed = customer
+      ? await confirmAction(
+          'Customer already exists',
+          `“${customer.name}” is already a customer with this number. Link this lead to them instead of creating a new customer?`,
+          'Link lead')
+      : await confirmAction(
+          'Convert to customer?',
+          `“${lead.name}” will be added as a customer and this lead will be marked Converted.`,
+          'Convert');
+    if (!proceed) return;
+
+    const linkedToExisting = Boolean(customer);
+    if (!customer) {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert({ lead_id: lead.id, name: lead.name, phone, location: lead.location })
+        .select('id, name, lead_id')
+        .single();
+      if (error && error.code === '23505') {
+        // Someone else created this customer a moment ago: use theirs.
+        customer = await findCustomerByPhone(phone);
+        if (!customer) throw error;
+      } else if (error) {
+        throw error;
+      } else {
+        customer = data;
+      }
+    } else if (!customer.lead_id) {
+      // Record where this customer came from, but never overwrite an existing origin.
+      const { error } = await supabase.from('customers').update({ lead_id: lead.id })
+        .eq('id', customer.id).is('lead_id', null);
+      if (error) throw error;
+    }
+
+    await updateLead(lead.id, { status: 'Converted' });
+    toast(linkedToExisting ? `Lead linked to customer “${customer.name}”.` : 'Lead converted to a customer.', 'success');
+    await load();
+  } catch (error) {
+    handleError(error);
+  } finally {
+    converting = false;
+  }
+}
+
+async function findCustomerByPhone(phone) {
+  const { data, error } = await supabase.from('customers').select('id, name, lead_id')
+    .eq('phone_norm', phone).limit(1);
+  if (error) throw error;
+  return data[0] ?? null;
 }
 
 async function restoreLead(lead, button) {
