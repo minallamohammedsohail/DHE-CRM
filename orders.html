@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orders — Dream Home Enterprises</title>
+  <link rel="stylesheet" href="css/style.css">
+  <noscript><style>body { visibility: visible; }</style></noscript>
+</head>
+<body>
+  <div class="shell">
+    <nav id="nav" class="sidebar" aria-label="Main"></nav>
+
+    <main class="main main-wide">
+      <header class="page-header page-header-row">
+        <div>
+          <h1>Orders</h1>
+          <p id="count" class="muted" aria-live="polite"></p>
+        </div>
+        <button id="add-btn" class="btn" type="button">Add order</button>
+      </header>
+
+      <form id="filters" class="toolbar toolbar-orders" role="search">
+        <div class="field">
+          <label for="f-search">Search</label>
+          <input id="f-search" type="search" placeholder="Customer, phone, description" maxlength="100" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-status">Status</label>
+          <select id="f-status"><option value="">All statuses</option></select>
+        </div>
+        <div class="field">
+          <label for="f-payment">Payment</label>
+          <select id="f-payment">
+            <option value="">Any</option>
+            <option value="outstanding">Outstanding balance</option>
+            <option value="settled">Paid in full</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-from">From</label>
+          <input id="f-from" type="date">
+        </div>
+        <div class="field">
+          <label for="f-to">To</label>
+          <input id="f-to" type="date">
+        </div>
+        <div class="field">
+          <label for="f-sort">Sort by</label>
+          <select id="f-sort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="total">Largest total</option>
+            <option value="balance">Largest balance</option>
+          </select>
+        </div>
+      </form>
+
+      <p id="loading" class="notice">Loading…</p>
+      <p id="empty" class="empty" hidden></p>
+      <div id="table-wrap" class="table-wrap" hidden>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Customer</th>
+              <th scope="col">Order</th>
+              <th scope="col">Total</th>
+              <th scope="col">Paid</th>
+              <th scope="col">Balance</th>
+              <th scope="col">Status</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="limit-note" class="notice" hidden>Showing the first 200 matches. Use search or filters to narrow the list.</p>
+    </main>
+  </div>
+
+  <!-- Add / edit -->
+  <dialog id="order-dialog" aria-labelledby="order-dialog-title">
+    <form id="order-form">
+      <h2 id="order-dialog-title">Add order</h2>
+      <p id="order-error" class="form-error" role="alert"></p>
+
+      <div class="form-grid">
+        <div class="field span-2">
+          <label id="person-label" for="p-search">Customer *</label>
+          <div id="person-chosen" class="chosen" hidden>
+            <span id="person-name"></span>
+            <button id="person-change" type="button" class="link-btn">Change</button>
+          </div>
+          <div id="person-picker">
+            <input id="p-search" type="search" placeholder="Search a customer by name or phone" maxlength="100" autocomplete="off">
+            <ul id="p-results" class="picker-results"></ul>
+            <p id="p-hint" class="hint">Type at least 2 letters or 3 digits. The customer must already exist; convert the lead first if needed.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="o-date">Order date *</label>
+          <input id="o-date" name="order_date" type="date" required min="2000-01-01">
+        </div>
+        <div class="field">
+          <label for="o-status">Status</label>
+          <select id="o-status" name="status"></select>
+        </div>
+        <div class="field span-2">
+          <label for="o-description">Description *</label>
+          <textarea id="o-description" name="description" required maxlength="500" placeholder="What was ordered"></textarea>
+        </div>
+        <div class="field">
+          <label for="o-quantity">Quantity</label>
+          <input id="o-quantity" name="quantity" type="number" min="0.01" step="0.01" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="o-unit">Unit</label>
+          <select id="o-unit" name="unit"><option value="">Not specified</option></select>
+        </div>
+        <div class="field">
+          <label for="o-total">Total amount (₹) *</label>
+          <input id="o-total" name="total_amount" type="number" min="0.01" step="0.01" required inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="o-paid">Amount paid (₹)</label>
+          <input id="o-paid" name="amount_paid" type="number" min="0" step="0.01" inputmode="decimal">
+          <p class="hint">Use “Record payment” to add a payment later.</p>
+        </div>
+        <div class="field span-2">
+          <label for="o-notes">Notes</label>
+          <textarea id="o-notes" name="notes" maxlength="2000"></textarea>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="order-cancel" class="btn btn-quiet" type="button">Cancel</button>
+        <button id="order-save" class="btn" type="submit">Save order</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- View -->
+  <dialog id="view-dialog" aria-labelledby="view-title">
+    <h2><span id="view-title"></span><span id="view-badge" class="badge"></span></h2>
+    <dl id="view-details" class="details"></dl>
+    <div id="view-actions" class="dialog-actions-wrap"></div>
+  </dialog>
+
+  <!-- Record payment -->
+  <dialog id="pay-dialog" aria-labelledby="pay-title">
+    <form id="pay-form">
+      <h2 id="pay-title">Record payment</h2>
+      <p id="pay-error" class="form-error" role="alert"></p>
+      <dl id="pay-summary" class="details"></dl>
+      <div class="field">
+        <label for="pay-amount">Amount received now (₹) *</label>
+        <input id="pay-amount" type="number" min="0.01" step="0.01" required inputmode="decimal">
+        <p id="pay-preview" class="hint"></p>
+      </div>
+      <div class="dialog-actions">
+        <button id="pay-cancel" class="btn btn-quiet" type="button">Cancel</button>
+        <button id="pay-save" class="btn" type="submit">Record payment</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/orders.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@ import {
   supabase, requireAuth, renderNav, handleError, toast, el,
   confirmAction, orNull, applySearch, tableCell, detail,
   normalizePhone, isValidIndianMobile, formatPhone, telLink, whatsappLink,
-  formatDate, formatDateTime,
+  formatDate, formatDateTime, formatDay, formatMoney, addMoney,
 } from './app.js';
 
 const PAGE_LIMIT = 200;
@@ -152,7 +152,9 @@ function openView(customer) {
   }
   const schedule = el('a', 'btn btn-quiet', 'Schedule follow-up');
   schedule.href = `followups.html?customer=${encodeURIComponent(customer.id)}`;
-  actions.append(schedule);
+  const addOrder = el('a', 'btn btn-quiet', 'Add order');
+  addOrder.href = `orders.html?customer=${encodeURIComponent(customer.id)}`;
+  actions.append(schedule, addOrder);
   const edit = el('button', 'btn btn-quiet', 'Edit');
   edit.type = 'button';
   edit.addEventListener('click', () => { viewDialog.close(); openForm(customer); });
@@ -204,7 +206,49 @@ async function loadLeads(customer) {
 
 async function loadLeadsAndFollowups(customer) {
   const leads = await loadLeads(customer);
-  await loadFollowups(customer, leads);
+  await Promise.all([loadFollowups(customer, leads), loadOrders(customer)]);
+}
+
+// Order history, newest first, with what is still owed (cancelled orders are
+// not counted).
+async function loadOrders(customer) {
+  const box = $('view-orders');
+  box.replaceChildren(el('p', 'muted', 'Loading…'));
+  try {
+    const { data, error } = await supabase.from('orders')
+      .select('id, order_date, description, total_amount, amount_paid, balance, status')
+      .eq('customer_id', customer.id)
+      .order('order_date', { ascending: false }).order('created_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    if (viewDialog.open === false) return;
+
+    if (data.length === 0) {
+      box.replaceChildren(el('p', 'muted', 'No orders yet.'));
+      return;
+    }
+    let owed = 0;
+    for (const order of data) {
+      if (order.status !== 'Cancelled' && Number(order.balance) > 0) owed = addMoney(owed, order.balance);
+    }
+    const summary = el('p', owed > 0 ? 'owed-line' : 'muted',
+      owed > 0 ? `Outstanding: ${formatMoney(owed)}` : 'Nothing outstanding.');
+
+    const list = el('ul', 'mini-list');
+    for (const order of data.slice(0, 50)) {
+      const row = el('li');
+      row.append(el('span', 'mini-name', order.description));
+      row.append(el('span', 'badge', order.status));
+      row.append(el('span', 'muted', `${formatDay(order.order_date)} · ${formatMoney(order.total_amount)} total · ${formatMoney(order.amount_paid)} paid`));
+      list.append(row);
+    }
+    const parts = [summary, list];
+    if (data.length > 50) parts.push(el('p', 'muted', `Showing the latest 50 of ${data.length} orders.`));
+    box.replaceChildren(...parts);
+  } catch (error) {
+    handleError(error);
+    box.replaceChildren(el('p', 'muted', 'Could not load orders.'));
+  }
 }
 
 // Follow-up history: the customer's own, plus those of its associated leads

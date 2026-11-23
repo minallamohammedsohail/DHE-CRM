@@ -15,11 +15,14 @@ const NAV = [
   { href: 'leads.html', label: 'Leads' },
   { href: 'customers.html', label: 'Customers' },
   { href: 'followups.html', label: 'Follow-ups' },
+  { href: 'orders.html', label: 'Orders' },
 ];
 
 // Status and source lists. Each must always match the CHECK constraint of the
 // same column in db/schema.sql. Never hard-code these strings elsewhere.
 export const LEAD_STATUSES = ['New', 'Contacted', 'Interested', 'Site Visit', 'Negotiation', 'Converted', 'Lost'];
+export const ORDER_STATUSES = ['Pending', 'Confirmed', 'Delivered', 'Cancelled'];
+export const ORDER_UNITS = ['Box', 'Piece', 'Sq. ft.'];
 export const FOLLOWUP_STATUSES = ['Pending', 'Completed', 'Cancelled'];
 export const LEAD_SOURCES = ['Walk-in', 'Referral', 'Phone', 'WhatsApp', 'Instagram', 'Website', 'Other'];
 
@@ -68,6 +71,9 @@ export function friendlyMessage(error) {
   if (code === '23505') return 'That record already exists.';
   if (code === '23503') return 'That record is linked to other records and cannot be changed this way.';
   if (code === '23514' || code === '23502') return 'Some of the information is not valid. Please check the form.';
+  if (code === 'conflict') {
+    return 'This record was changed by someone else, so nothing was saved. It has been refreshed; please check it and try again.';
+  }
   if (code === 'PGRST301' || /jwt expired/i.test(message)) {
     return 'Your session has expired. Please sign in again.';
   }
@@ -194,6 +200,31 @@ export function formatDateTime(value) {
   return value ? dateTimeFormat.format(new Date(value)) : '—';
 }
 
+// Money is added in whole paise so 0.10 + 0.20 is exactly 0.30, never
+// 0.30000000000000004.
+export function addMoney(a, b) {
+  return (Math.round(Number(a) * 100) + Math.round(Number(b) * 100)) / 100;
+}
+
+// True for plain amounts with at most 2 decimals that fit numeric(12,2).
+export function isValidMoney(text) {
+  const value = String(text ?? '').trim();
+  return /^\d{1,10}(\.\d{1,2})?$/.test(value) && Number(value) < 10_000_000_000;
+}
+
+// "due", "overpaid" or "paid in full" as a small badge.
+export function balanceBadge(balance) {
+  const amount = Number(balance);
+  if (amount > 0) return el('span', 'badge badge-due', `${formatMoney(amount)} due`);
+  if (amount < 0) return el('span', 'badge badge-over', `Overpaid ${formatMoney(-amount)}`);
+  return el('span', 'badge badge-ok', 'Paid in full');
+}
+
+// A date-only value such as "2026-11-23" (an order date) in the business zone.
+export function formatDay(value) {
+  return value ? dateFormat.format(new Date(`${value}T12:00:00${IST_OFFSET}`)) : '—';
+}
+
 // ---------------------------------------------------------------------------
 // Shared UI helpers used by more than one page
 // ---------------------------------------------------------------------------
@@ -205,7 +236,7 @@ export function orNull(value) {
 
 // Characters that would break PostgREST's or() filter syntax, or act as
 // wildcards, are removed from search text before it is used.
-function cleanSearch(text) {
+export function cleanSearch(text) {
   return text.replace(/[,()"\%*_]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 

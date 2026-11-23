@@ -270,3 +270,31 @@ dialog { max-height: 92vh; overflow-y: auto; }
   .data-table td.cell-phone .contact-links { display: flex; margin: 4px 0 0; }
 }
 .mini-note { flex-basis: 100%; overflow-wrap: anywhere; }
+
+/* ---- Orders ------------------------------------------------------------ */
+.main-wide { max-width: 1280px; }
+.toolbar-orders .field:first-child { grid-column: 1 / -1; }
+.badge-due { background: var(--danger-bg); color: var(--danger); }
+.badge-ok { background: var(--success-bg); color: var(--success); }
+.badge-over { background: #fdf3e7; color: #8a4b0f; }
+.row-muted { opacity: .65; }
+.action-btn { white-space: nowrap; }
+.sub { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+@media (min-width: 800px) {
+  .toolbar-orders { grid-template-columns: repeat(5, 1fr); }
+  .data-table td.cell-date, .data-table td.cell-num { white-space: nowrap; }
+  .data-table td.cell-num { text-align: right; }
+  .data-table th:nth-child(4), .data-table th:nth-child(5), .data-table th:nth-child(6) { text-align: right; }
+  .data-table td.cell-order { min-width: 180px; max-width: 300px; overflow-wrap: anywhere; }
+}
+.owed-line { margin: 0 0 8px; font-weight: 600; color: var(--danger); }
+
+/* Comfortable tap targets for row actions on phones; desktop keeps them compact. */
+.data-table td.cell-actions .action-btn,
+.data-table td.cell-actions .action-link,
+.data-table td.cell-phone .action-link { padding: 11px 6px; }
+@media (min-width: 800px) {
+  .data-table td.cell-actions .action-btn,
+  .data-table td.cell-actions .action-link,
+  .data-table td.cell-phone .action-link { padding: 0; }
+}

@@ -567,51 +567,61 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phases 0 to 4 complete. Phase 5 (Orders) next.**
+Project status: **Phases 0 to 5 built. Phase 6 (Dashboard) next. One database change from Phase 5 still needs to be applied and verified (see "Pending" below).**
 
 Completed:
 - Technology stack selected and locked; architecture reviewed and approved
 - Phase 0: schema applied; RLS enabled and verified; sign-up disabled; accounts created; GitHub repository; Vercel placeholder
 - Phase 1: auth gate, shared nav, toast and error handling, style foundation, login page
-- Phase 2: Leads (list, add, view, edit, inline status, archive/restore, search, filters, sort, call/WhatsApp)
-- Phase 3: Customers and lead conversion (find or create by phone, link to an existing customer, retry-safe)
-- Phase 4: Follow-ups. `followups.html`, `js/followups.js`; IST day and date-time helpers in `app.js`; "Schedule follow-up" on lead and customer dialogs; follow-up history on the customer profile; archiving a lead cancels its pending follow-ups. No schema change.
+- Phase 2: Leads
+- Phase 3: Customers and lead conversion
+- Phase 4: Follow-ups (IST calendar-day buckets; archiving a lead cancels its pending follow-ups)
+- Phase 5: Orders. `orders.html`, `js/orders.js`; exact-money helpers in `app.js`; Orders section and "Add order" on the customer profile.
 
-Decisions applied in Phase 4 (defaults approved):
-- D1 buckets are IST calendar days: Today = pending and due any time today; Overdue = pending and due before today; Upcoming = pending and due after today. Done = Completed or Cancelled.
-- D2 times are entered and shown in IST whatever the browser's timezone; default is tomorrow 10:00. A fixed +05:30 offset is used because India has no daylight saving; if `TIMEZONE` in `config.js` ever changes, `IST_OFFSET` in `app.js` must change with it.
-- D3 "Add follow-up" on the page uses a search picker (active leads that are not Converted, and customers). "Schedule follow-up" on a lead (active, not Converted) or customer opens `followups.html?lead=<id>` or `?customer=<id>` with that person chosen. Invalid, missing and archived targets show a message instead.
-- D4 Complete (no confirmation), Cancel (with confirmation), Edit time and note while Pending, Reopen from Done. No outcome note. Past dates are allowed (they show as Overdue); years outside 2000 to 2100 are rejected.
-- D5 archiving a lead also cancels its pending follow-ups; the confirmation says so; restoring does not revive them. If cancelling fails the lead stays archived and the user is told to cancel them from the Follow-ups page.
-- D6 customer profile shows follow-ups for the customer and for its associated leads
-- D7 a Converted lead's pending follow-ups stay on the lead, labelled "Converted", and are not moved
-- Links between pages: leads open with `?q=<phone>[&view=archived]`, customers with `?q=<phone>`
+Decisions applied in Phase 5 (defaults approved):
+- D1 payments are one running "amount paid" per order; "Record payment" adds to it; it can also be corrected by editing the order. There is no per-payment history (that would need a fifth table).
+- D2 overpayment is allowed after a confirmation; the balance shows as "Overpaid"
+- D3 `unit` is a fixed list (Box, Piece, Sq. ft.) via a CHECK constraint; quantity and unit are given together or not at all
+- D4 required: customer, description, total above 0, order date not in the future (defaults to today in IST)
+- D5 any status can move to any other; Cancelled needs confirmation and warns when money is recorded as paid; orders are never deleted
+- D6 add on the Orders page with a customer search, or from the customer profile (`orders.html?customer=<id>`); `lead_id` is copied from the customer's origin lead automatically
+- D7 "Record payment", order edits and status changes check the order is unchanged since it was loaded (`amount_paid` for payments, `updated_at` otherwise) and refuse with a message and a refresh if someone else changed it. Amounts are handled in whole paise.
+- Cancelled orders show no balance and are excluded from the "Outstanding" and "Paid in full" filters and from a customer's outstanding total. "Outstanding" on a customer profile sums only orders with a positive balance; an overpaid order is not netted against another order.
 
-Phase 4 tested (locally, signed in, with temporary rows, all deleted afterwards):
-- IST helpers: 14 checks in Node at the 23:59 / 00:00 IST edges, with the machine timezone left default, forced to Los Angeles and forced to Auckland; all pass
-- Live bucket boundaries with real rows at yesterday 23:59, today 00:00, today 23:59 and tomorrow 00:00 land in Overdue, Today, Today and Upcoming; tab counts match; "N days late" badges
-- Row contents: due time in IST, contact (customer else lead) with correct `tel:` and `wa.me/91` links, Lead/Customer/Converted/Archived labels, links to the related lead or customer
-- Complete, Cancel (dismiss and confirm), Edit (prefilled in IST; 15:30 IST stored as 10:00 UTC; parent unchanged; `updated_at` moves), Reopen (a reopened follow-up from yesterday lands in Overdue)
-- Add: picker (too short, by name, by phone, no match, hostile characters), Converted leads excluded, nobody chosen rejected, Change person, empty date and years 1999 and 2101 blocked, triple-submit creates one row, new item shows on the tab it belongs to
-- Pre-filled links: lead, customer, invalid id, valid id that does not exist, archived lead
-- D5: prompt text, dismiss changes nothing, confirm cancels 3 pending follow-ups, restore does not revive them, partial failure message when the cancel step fails (lead archived, follow-up still pending, labelled Archived and linkable)
-- Customer profile history, including a converted lead's earlier follow-up; empty history message
-- A script tag in a lead name and an `<img onerror>` in a note render as plain text; nothing executed
+Phase 5 tested (locally, signed in, temporary rows, all deleted afterwards):
+- Money helpers in Node (default timezone, Los Angeles, Auckland): 0.10 + 0.20 is exactly 0.30; valid and invalid amount strings; 3-decimal input is rejected before any arithmetic
+- Payments through the page: 0.10 then 0.20 gives exactly 0.30, then up to exactly 10,000; zero, negative and 3-decimal amounts blocked; live new-balance preview; overpayment prompt (dismiss keeps the dialog open and data unchanged, confirm records it and shows "Overpaid")
+- Concurrency: another user changes the order while a payment dialog, an edit form, or a status dropdown is open; each save is refused, nothing is overwritten, the user sees the message and the list refreshes; a clean edit still saves (the `updated_at` guard matches exactly). A bug found here (message hidden in a closed dialog) was fixed and re-tested.
+- Validation proven in two layers: the browser's native checks block every bad case; with those removed, my own checks alone reject blank description, future date, year 1999, zero total, 3-decimal total, paid and quantity, negative paid, zero quantity, quantity without unit, unit without quantity, `1e3` and an amount too large for the column
+- Add: customer picker (too short, by name, by phone, no match, hostile characters), nothing chosen, overpayment on create, valid add with quantity and unit, triple submit creates one row
+- Status: normal change; Cancel with money recorded (dismiss reverts the dropdown, confirm cancels); un-cancel; cancelled row muted with no balance
+- View and edit dialogs: contents, prefilled edit with the customer locked, saved values, `created_at` and customer unchanged, `updated_at` moves
+- Search, filters and sorts compared against results computed independently from the raw database rows: customer name, phone, description and notes, phrase, no match, each status, outstanding, paid in full, date from, to, range, same day, a combination, reversed range message, and all four sorts including full tie-break order
+- `?customer=` links: valid, invalid id, valid id that does not exist
+- Customer profile: order history, outstanding total checked against an independent calculation (cancelled excluded), "Add order" link, empty state
+- The database refuses to delete a customer who has orders (`ON DELETE RESTRICT`, error 23503)
+- A script tag and an `<img onerror>` in a customer name and an order description render as plain text; nothing executed
 - Offline load shows a friendly message after about 7 seconds
-- Regression on Phase 2 and 3: search, conversion, duplicate-phone warning and cancel
-- Layout at desktop and phone width; fixed a badge that wrapped mid-word
+- Regression: lead search and conversion, follow-up picker and creation; no JavaScript errors
+- Layout at desktop and phone width; no horizontal overflow on phones; fixed cramped filters, wrapping actions, and row actions that were only 24px tall (now 46px on phones)
+
+Pending:
+- `db/schema.sql` now contains the `orders_unit_check` constraint, but it has NOT yet been applied to the live database, so it is not verified. Until it is applied, the database accepts any unit text (the form still only offers the three).
+- Apply this in the Supabase SQL Editor, then test that an invalid unit is rejected:
+  `alter table public.orders drop constraint if exists orders_unit_check; alter table public.orders add constraint orders_unit_check check (unit is null or unit in ('Box','Piece','Sq. ft.'));`
 
 Known behaviour and limits:
-- With no network, loads and saves show no error for about 7 to 8 seconds while the Supabase client retries
+- No per-payment history and no order numbers (orders are identified by customer, date and description); either would be a schema addition
 - Lists show at most 200 rows
-- "Overdue" and "Today" rely on the browser's clock being correct
-- Pending follow-ups of a lead archived before this phase are not cancelled retroactively (there were none)
-- Modal dialogs cannot be captured in screenshots; dialogs were checked through the page's state, not by eye
+- Order search matches customers by name or phone (every word), and descriptions or notes by the whole phrase; at most the first 100 matching customers are used
+- With no network, loads show no error for about 7 seconds while the Supabase client retries
+- On phones the filter block is tall; the first order appears below about five rows of filters
+- Modal dialogs cannot be captured in screenshots; they were checked through page state
 - Carried from Phase 2: one unexplained, unreproduced stuck Save button after a duplicate-warning Cancel
-- Not tested: the deployed Vercel site with Phase 1 to 4 code; signing out in a second tab
+- Not tested: the deployed Vercel site with Phase 1 to 5 code; signing out in a second tab
 
 Next:
-- Phase 5: Orders (create, edit, record payment, outstanding balance, status, history by customer, search and filter). Open questions O2 (overpayment) and O4 (unit list) apply; O3 (revenue definition) is needed for Phase 6.
+- Phase 6: Dashboard (all nine widgets). Open question O3 (what "Revenue this month" means) must be settled first; my default is the sum of `total_amount` for non-cancelled orders dated this month.
 
 ## 18. Open Questions
 

@@ -225,6 +225,13 @@ create table if not exists public.orders (
 comment on table  public.orders         is 'Customer orders and revenue.';
 comment on column public.orders.balance is 'Generated: total_amount - amount_paid. May be negative on overpayment.';
 
+-- Unit is a fixed list so the form dropdown stays clean. NULL is allowed
+-- (quantity and unit are optional, but the app requires them together). The
+-- same list lives in ORDER_UNITS in js/app.js; the two must always agree.
+alter table public.orders drop constraint if exists orders_unit_check;
+alter table public.orders add constraint orders_unit_check
+  check (unit is null or unit in ('Box','Piece','Sq. ft.'));
+
 drop trigger if exists orders_set_updated_at on public.orders;
 create trigger orders_set_updated_at
   before update on public.orders
