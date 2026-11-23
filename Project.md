@@ -567,29 +567,29 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phase 0 complete. Phase 1 (auth and shell) built; signed-in verification pending.**
+Project status: **Phases 0 and 1 complete. Phase 2 (Leads) next.**
 
 Completed:
 - Technology stack selected and locked
 - Architecture reviewed and approved; decisions recorded in this file
 - Phase 0: `db/schema.sql` applied to Supabase; RLS enabled; anon access verified denied on all four tables; public sign-up disabled; email confirmation off; user accounts created; `js/config.js` filled in; repository on GitHub; placeholder page deployed on Vercel
 - Supabase JS client pinned to 2.119.0 (verified on the CDN)
-- Phase 1 code: `js/supabase.js`, `js/app.js` (auth gate, nav, toast, error handling), `css/style.css` foundation, `login.html`, shell in `index.html`
+- Phase 1: `js/supabase.js`, `js/app.js` (auth gate, nav, toast, error handling), `css/style.css` foundation, `login.html`, shell in `index.html`
 
 Phase 1 tested (locally, in the browser):
 - Signed-out visit to `index.html` redirects to `login.html`; no console errors
 - Wrong password shows "Incorrect email or password."; form recovers
 - Double submit sends exactly one auth request
-- Login page layout at phone width
+- Successful login reaches the dashboard shell
+- Desktop sidebar and phone top bar; Menu toggle opens and closes; current page highlighted
+- Sign out redirects to login and clears the stored session
+- Signed-in user can insert, read, update and delete in all four tables. Verified: defaults, generated `phone_norm` and `balance`, `created_by` filled automatically, `updated_at` trigger, duplicate customer phone rejected, invalid lead status rejected, follow-up without a parent rejected, order blocks deletion of its customer. All test rows removed afterwards.
 
-Phase 1 NOT yet tested (needs a real sign-in):
-- Successful login and redirect to the dashboard
-- Shell and nav at desktop and phone width, menu toggle, active link
-- Sign out, including signing out in a second tab
-- A signed-in user can read and write all four tables (RLS allows authenticated access)
+Not tested:
+- Signing out in a second tab signing out the first (code present in `requireAuth`, not exercised)
+- Production Vercel deployment of the Phase 1 code (not yet checked)
 
 Next:
-- Finish the signed-in checks above, then close Phase 1
 - Phase 2: Leads
 
 ## 18. Open Questions
