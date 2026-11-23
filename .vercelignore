@@ -1,0 +1,5 @@
+# Files that stay in the repository but are not served on the website.
+# They are design documentation, not part of the running app.
+Project.md
+db
+.gitattributes
