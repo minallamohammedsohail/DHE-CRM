@@ -13,8 +13,8 @@
 // Replace both placeholder values from:
 //   Supabase dashboard -> Project Settings -> API
 
-export const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-export const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLISHABLE-KEY';
+export const SUPABASE_URL = 'https://xvrmbbnqyuykltwmrila.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_ZJSa-ixwN4d0BKED8_5GUA_W4YdVF4J';
 
 // Pinned Supabase JS client version. Never use a floating range like @2 —
 // a third-party release could then break production with no change here.
