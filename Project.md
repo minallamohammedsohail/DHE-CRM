@@ -567,17 +567,30 @@ A feature is considered complete only when:
 
 ## 17. Current Project Status
 
-Project status: **Phase 0 complete. Phase 1 (auth and shell) next.**
+Project status: **Phase 0 complete. Phase 1 (auth and shell) built; signed-in verification pending.**
 
 Completed:
 - Technology stack selected and locked
 - Architecture reviewed and approved; decisions recorded in this file
 - Phase 0: `db/schema.sql` applied to Supabase; RLS enabled; anon access verified denied on all four tables; public sign-up disabled; email confirmation off; user accounts created; `js/config.js` filled in; repository on GitHub; placeholder page deployed on Vercel
 - Supabase JS client pinned to 2.119.0 (verified on the CDN)
+- Phase 1 code: `js/supabase.js`, `js/app.js` (auth gate, nav, toast, error handling), `css/style.css` foundation, `login.html`, shell in `index.html`
+
+Phase 1 tested (locally, in the browser):
+- Signed-out visit to `index.html` redirects to `login.html`; no console errors
+- Wrong password shows "Incorrect email or password."; form recovers
+- Double submit sends exactly one auth request
+- Login page layout at phone width
+
+Phase 1 NOT yet tested (needs a real sign-in):
+- Successful login and redirect to the dashboard
+- Shell and nav at desktop and phone width, menu toggle, active link
+- Sign out, including signing out in a second tab
+- A signed-in user can read and write all four tables (RLS allows authenticated access)
 
 Next:
-- Phase 1: `login.html`, auth gate, shared nav, `style.css` foundation
-- Verify a signed-in user can read and write all four tables (not yet tested; only anon denial has been)
+- Finish the signed-in checks above, then close Phase 1
+- Phase 2: Leads
 
 ## 18. Open Questions
 

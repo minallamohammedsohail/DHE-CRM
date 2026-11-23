@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — Dream Home Enterprises</title>
+  <link rel="stylesheet" href="css/style.css">
+  <noscript><style>body { visibility: visible; }</style></noscript>
+</head>
+<body>
+  <div class="login-wrap">
+    <main class="card login-card">
+      <p class="brand-name">Dream Home Enterprises</p>
+      <h1>Sign in</h1>
+
+      <noscript><p class="form-error">JavaScript is required to use this application.</p></noscript>
+
+      <form id="login-form" novalidate>
+        <p id="form-error" class="form-error" role="alert"></p>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required autocomplete="username" autofocus>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required autocomplete="current-password">
+        </div>
+
+        <button id="submit" class="btn btn-block" type="submit">Sign in</button>
+      </form>
+    </main>
+  </div>
+
+  <script type="module">
+    import { supabase, handleError } from './js/app.js';
+
+    const form = document.getElementById('login-form');
+    const errorBox = document.getElementById('form-error');
+    const submit = document.getElementById('submit');
+    let busy = false;
+
+    // Already signed in: go straight to the app.
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        location.replace('index.html');
+      }
+    } catch (error) {
+      handleError(error, { toast: false });
+    }
+    document.body.classList.add('ready');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (busy) return; // double-submission guard
+      errorBox.textContent = '';
+
+      const email = form.email.value.trim();
+      const password = form.password.value;
+      if (!email || !password) {
+        errorBox.textContent = 'Enter your email and password.';
+        return;
+      }
+      if (!form.email.checkValidity()) {
+        errorBox.textContent = 'Enter a valid email address.';
+        return;
+      }
+
+      busy = true;
+      submit.disabled = true;
+      submit.textContent = 'Signing in…';
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        location.replace('index.html');
+        return; // stay disabled while the redirect happens
+      } catch (error) {
+        errorBox.textContent = handleError(error, { toast: false });
+      }
+      busy = false;
+      submit.disabled = false;
+      submit.textContent = 'Sign in';
+    });
+  </script>
+</body>
+</html>
